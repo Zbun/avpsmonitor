@@ -37,14 +37,29 @@ function getRedis(): Redis | null {
 }
 
 // 从环境变量解析预配置的服务器列表
-// 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong:2025-12-31:1,id2:名称2:JP:Tokyo:2025-06-15:15
-// 字段: 节点ID:显示名称:国家代码:位置:到期日期:流量重置日
+// 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong:2025-12-31:1:1024,id2:名称2:JP:Tokyo:2025-06-15:15:2048
+// 字段: 节点ID:显示名称:国家代码:位置:到期日期:流量重置日:月流量总数(GB)
 interface ServerConfig {
   name: string;
   countryCode: string;
   location: string;
   expireDate?: string;
   resetDay: number;
+  monthlyTotal: number; // 月流量总数（字节）
+}
+
+// 解析流量配置，支持 TB/GB 单位（不区分大小写），无单位默认 GB
+function parseTrafficSize(value: string | undefined): number {
+  if (!value) return DEFAULTS.monthlyTotal;
+  const trimmed = value.trim().toUpperCase();
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(TB|GB)?$/i);
+  if (!match) return DEFAULTS.monthlyTotal;
+  const num = parseFloat(match[1]);
+  const unit = match[2]?.toUpperCase() || 'GB';
+  if (unit === 'TB') {
+    return num * 1024 * 1024 * 1024 * 1024; // TB -> bytes
+  }
+  return num * 1024 * 1024 * 1024; // GB -> bytes
 }
 
 function getPreConfiguredServers(): Map<string, ServerConfig> {
@@ -56,7 +71,7 @@ function getPreConfiguredServers(): Map<string, ServerConfig> {
   try {
     config.split(',').forEach(item => {
       const parts = item.trim().split(':');
-      const [id, name, countryCode, location, expireDate, resetDay] = parts;
+      const [id, name, countryCode, location, expireDate, resetDay, monthlyTotalStr] = parts;
       if (id && name) {
         servers.set(id.trim(), {
           name: name.trim(),
@@ -64,6 +79,7 @@ function getPreConfiguredServers(): Map<string, ServerConfig> {
           location: (location || name).trim(),
           expireDate: expireDate?.trim() || undefined,
           resetDay: parseInt(resetDay) || DEFAULTS.resetDay,
+          monthlyTotal: parseTrafficSize(monthlyTotalStr),
         });
       }
     });
@@ -97,7 +113,7 @@ function generatePlaceholderNode(id: string, config: ServerConfig) {
       totalUpload: 0,
       totalDownload: 0,
       monthlyUsed: 0,
-      monthlyTotal: DEFAULTS.monthlyTotal,
+      monthlyTotal: config.monthlyTotal || DEFAULTS.monthlyTotal,
       resetDay: config.resetDay || DEFAULTS.resetDay,
     },
     lastUpdate: 0,
@@ -233,7 +249,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               totalUpload: network.totalUpload || 0,
               totalDownload: network.totalDownload || 0,
               monthlyUsed: network.monthlyUsed || 0,
-              monthlyTotal: network.monthlyTotal || DEFAULTS.monthlyTotal,
+              // 月流量总数：VPS_SERVERS 配置 > Agent 上报 > 默认值
+              monthlyTotal: preConfig?.monthlyTotal || network.monthlyTotal || DEFAULTS.monthlyTotal,
               resetDay: resetDay,
             },
           };

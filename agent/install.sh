@@ -158,11 +158,21 @@ function getOSInfo() {
     try {
       if (fs.existsSync('/etc/os-release')) {
         const content = fs.readFileSync('/etc/os-release', 'utf-8');
-        for (const line of content.split('\\n')) {
+        const lines = content.split('\n');
+        let prettyName = '';
+        let name = '';
+        let version = '';
+        for (const line of lines) {
           if (line.startsWith('PRETTY_NAME=')) {
-            return line.split('=')[1].replace(/"/g, '').trim();
+            prettyName = line.split('=')[1].replace(/"/g, '').trim();
+          } else if (line.startsWith('NAME=')) {
+            name = line.split('=')[1].replace(/"/g, '').trim();
+          } else if (line.startsWith('VERSION_ID=')) {
+            version = line.split('=')[1].replace(/"/g, '').trim();
           }
         }
+        if (prettyName) return prettyName;
+        if (name) return version ? name + ' ' + version : name;
       }
     } catch (e) {}
     return 'Linux ' + os.release();

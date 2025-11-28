@@ -356,9 +356,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         <span className={`text-xs font-medium ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
                           parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' :
                             'text-red-600 dark:text-red-400'
-                          }`}>{formatBytes(node.network.monthlyUsed)}</span>
+                          }`}>{trafficPercent}%</span>
                         <span className="text-[10px] text-slate-400 dark:text-gray-500">
-                          / {formatBytes(node.network.monthlyTotal)}
+                          {formatBytes(node.network.monthlyUsed)} / {formatBytes(node.network.monthlyTotal)}
                         </span>
                       </div>
                     </td>
