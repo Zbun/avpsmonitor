@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
@@ -9,6 +8,19 @@ const DEFAULTS = {
   monthlyTotal: 1099511627776, // 1TB
   resetDay: 1,
 };
+
+// 动态导入 KV（避免未配置时报错）
+async function getKV() {
+  try {
+    const { kv } = await import('@vercel/kv');
+    // 测试连接
+    await kv.ping();
+    return kv;
+  } catch (e) {
+    console.warn('Vercel KV not available:', e);
+    return null;
+  }
+}
 
 // 从环境变量解析预配置的服务器列表
 // 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong,id2:名称2:JP:Tokyo
@@ -36,6 +48,35 @@ function getPreConfiguredServers(): Map<string, { name: string; countryCode: str
   return servers;
 }
 
+// 根据预配置生成离线节点占位数据
+function generatePlaceholderNode(id: string, config: { name: string; countryCode: string; location: string }) {
+  return {
+    id,
+    name: config.name,
+    countryCode: config.countryCode,
+    location: config.location,
+    status: 'offline',
+    ipAddress: '-',
+    protocol: 'KVM',
+    os: 'Unknown',
+    uptime: 0,
+    load: [0, 0, 0],
+    cpu: { model: 'Unknown', cores: 1, usage: 0 },
+    memory: { total: 0, used: 0, usage: 0 },
+    disk: { total: 0, used: 0, usage: 0 },
+    network: {
+      currentUpload: 0,
+      currentDownload: 0,
+      totalUpload: 0,
+      totalDownload: 0,
+      monthlyUsed: 0,
+      monthlyTotal: DEFAULTS.monthlyTotal,
+      resetDay: DEFAULTS.resetDay,
+    },
+    lastUpdate: 0,
+  };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 头
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -53,80 +94,131 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 获取预配置的服务器列表
     const preConfigured = getPreConfiguredServers();
+    const now = Date.now();
+
+    // 尝试获取 KV 连接
+    const kv = await getKV();
+
+    // 如果 KV 不可用，返回预配置的离线节点
+    if (!kv) {
+      const placeholderNodes = Array.from(preConfigured.entries()).map(([id, config]) =>
+        generatePlaceholderNode(id, config)
+      );
+
+      return res.status(200).json({
+        nodes: placeholderNodes,
+        timestamp: now,
+        count: placeholderNodes.length,
+        kvAvailable: false,
+      });
+    }
 
     // 获取所有节点 ID
-    const nodeIds = await kv.smembers('vps:nodes') || [];
-    const now = Date.now();
+    let nodeIds: string[] = [];
+    try {
+      nodeIds = await kv.smembers('vps:nodes') || [];
+    } catch (e) {
+      console.warn('Error fetching node list:', e);
+    }
 
     // 获取每个节点的数据
     const nodes = await Promise.all(
-      nodeIds.map(async (nodeId) => {
-        const data = await kv.get(`${KV_PREFIX}${nodeId}`);
-        if (!data) {
-          // 节点数据过期，从列表中移除
-          await kv.srem('vps:nodes', nodeId);
+      nodeIds.map(async (nodeId: string) => {
+        try {
+          const data = await kv.get(`${KV_PREFIX}${nodeId}`);
+          if (!data) {
+            // 节点数据过期，从列表中移除
+            await kv.srem('vps:nodes', nodeId);
+            return null;
+          }
+
+          // 检查是否超时（60秒无更新视为离线）
+          const nodeData = data as any;
+          const isOnline = (now - nodeData.lastUpdate) < 60000;
+
+          // 优先使用环境变量中的配置
+          const preConfig = preConfigured.get(nodeId);
+
+          // 从预配置中移除已处理的节点
+          preConfigured.delete(nodeId);
+
+          // 确保 network 对象有所有必需字段
+          const network = nodeData.network || {};
+
+          return {
+            ...nodeData,
+            // 环境变量配置优先
+            name: preConfig?.name || nodeData.name || nodeId,
+            countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
+            location: preConfig?.location || nodeData.location || 'Unknown',
+            status: isOnline ? 'online' : 'offline',
+            // 确保必需字段有默认值
+            os: nodeData.os || 'Unknown',
+            uptime: nodeData.uptime || 0,
+            load: nodeData.load || [0, 0, 0],
+            cpu: {
+              model: nodeData.cpu?.model || 'Unknown',
+              cores: nodeData.cpu?.cores || 1,
+              usage: isOnline ? (nodeData.cpu?.usage || 0) : 0,
+            },
+            memory: {
+              total: nodeData.memory?.total || 0,
+              used: nodeData.memory?.used || 0,
+              usage: isOnline ? (nodeData.memory?.usage || 0) : 0,
+            },
+            disk: {
+              total: nodeData.disk?.total || 0,
+              used: nodeData.disk?.used || 0,
+              usage: isOnline ? (nodeData.disk?.usage || 0) : 0,
+            },
+            network: {
+              currentUpload: isOnline ? (network.currentUpload || 0) : 0,
+              currentDownload: isOnline ? (network.currentDownload || 0) : 0,
+              totalUpload: network.totalUpload || 0,
+              totalDownload: network.totalDownload || 0,
+              monthlyUsed: network.monthlyUsed || 0,
+              monthlyTotal: network.monthlyTotal || DEFAULTS.monthlyTotal,
+              resetDay: network.resetDay || DEFAULTS.resetDay,
+            },
+          };
+        } catch (e) {
+          console.error(`Error fetching node ${nodeId}:`, e);
           return null;
         }
-
-        // 检查是否超时（60秒无更新视为离线）
-        const nodeData = data as any;
-        const isOnline = (now - nodeData.lastUpdate) < 60000;
-
-        // 优先使用环境变量中的配置
-        const preConfig = preConfigured.get(nodeId);
-
-        // 确保 network 对象有所有必需字段
-        const network = nodeData.network || {};
-
-        return {
-          ...nodeData,
-          // 环境变量配置优先
-          name: preConfig?.name || nodeData.name || nodeId,
-          countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
-          location: preConfig?.location || nodeData.location || 'Unknown',
-          status: isOnline ? 'online' : 'offline',
-          // 确保必需字段有默认值
-          os: nodeData.os || 'Unknown',
-          uptime: nodeData.uptime || 0,
-          load: nodeData.load || [0, 0, 0],
-          cpu: {
-            model: nodeData.cpu?.model || 'Unknown',
-            cores: nodeData.cpu?.cores || 1,
-            usage: isOnline ? (nodeData.cpu?.usage || 0) : 0,
-          },
-          memory: {
-            total: nodeData.memory?.total || 0,
-            used: nodeData.memory?.used || 0,
-            usage: isOnline ? (nodeData.memory?.usage || 0) : 0,
-          },
-          disk: {
-            total: nodeData.disk?.total || 0,
-            used: nodeData.disk?.used || 0,
-            usage: isOnline ? (nodeData.disk?.usage || 0) : 0,
-          },
-          network: {
-            currentUpload: isOnline ? (network.currentUpload || 0) : 0,
-            currentDownload: isOnline ? (network.currentDownload || 0) : 0,
-            totalUpload: network.totalUpload || 0,
-            totalDownload: network.totalDownload || 0,
-            monthlyUsed: network.monthlyUsed || 0,
-            monthlyTotal: network.monthlyTotal || DEFAULTS.monthlyTotal,
-            resetDay: network.resetDay || DEFAULTS.resetDay,
-          },
-        };
       })
     );
 
     // 过滤掉 null 值
     const validNodes = nodes.filter(Boolean);
 
+    // 添加预配置但尚未上报数据的节点（显示为离线）
+    const remainingPreConfigured = Array.from(preConfigured.entries()).map(([id, config]) =>
+      generatePlaceholderNode(id, config)
+    );
+
+    const allNodes = [...validNodes, ...remainingPreConfigured];
+
     return res.status(200).json({
-      nodes: validNodes,
+      nodes: allNodes,
       timestamp: now,
-      count: validNodes.length
+      count: allNodes.length,
+      kvAvailable: true,
     });
   } catch (error) {
     console.error('Error fetching nodes:', error);
-    return res.status(500).json({ error: 'Internal server error', nodes: [] });
+
+    // 即使出错，也尝试返回预配置的节点
+    const preConfigured = getPreConfiguredServers();
+    const placeholderNodes = Array.from(preConfigured.entries()).map(([id, config]) =>
+      generatePlaceholderNode(id, config)
+    );
+
+    return res.status(200).json({
+      nodes: placeholderNodes,
+      timestamp: Date.now(),
+      count: placeholderNodes.length,
+      error: 'KV connection failed',
+      kvAvailable: false,
+    });
   }
 }
