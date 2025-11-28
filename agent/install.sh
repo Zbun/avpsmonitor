@@ -168,7 +168,9 @@ async function getSystemInfo() {
 async function report() {
   try {
     const data = await getSystemInfo();
-    const payload = JSON.stringify({ nodeId: CONFIG.nodeId, data });
+    // 直接展开系统数据，不嵌套在 data 对象中
+    const reportData = { nodeId: CONFIG.nodeId, protocol: 'KVM', ...data };
+    const payload = JSON.stringify(reportData);
     const url = new URL(`${CONFIG.serverUrl}/api/report`);
     const client = url.protocol === 'https:' ? https : http;
     

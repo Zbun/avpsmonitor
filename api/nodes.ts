@@ -10,6 +10,32 @@ const DEFAULTS = {
   resetDay: 1,
 };
 
+// 从环境变量解析预配置的服务器列表
+// 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong,id2:名称2:JP:Tokyo
+function getPreConfiguredServers(): Map<string, { name: string; countryCode: string; location: string }> {
+  const servers = new Map();
+  const config = process.env.VPS_SERVERS;
+
+  if (!config) return servers;
+
+  try {
+    config.split(',').forEach(item => {
+      const [id, name, countryCode, location] = item.trim().split(':');
+      if (id && name) {
+        servers.set(id.trim(), {
+          name: name.trim(),
+          countryCode: (countryCode || 'US').trim(),
+          location: (location || name).trim(),
+        });
+      }
+    });
+  } catch (e) {
+    console.error('Error parsing VPS_SERVERS:', e);
+  }
+
+  return servers;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 头
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,6 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // 获取预配置的服务器列表
+    const preConfigured = getPreConfiguredServers();
+
     // 获取所有节点 ID
     const nodeIds = await kv.smembers('vps:nodes') || [];
     const now = Date.now();
@@ -43,11 +72,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const nodeData = data as any;
         const isOnline = (now - nodeData.lastUpdate) < 60000;
 
+        // 优先使用环境变量中的配置
+        const preConfig = preConfigured.get(nodeId);
+
         // 确保 network 对象有所有必需字段
         const network = nodeData.network || {};
 
         return {
           ...nodeData,
+          // 环境变量配置优先
+          name: preConfig?.name || nodeData.name || nodeId,
+          countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
+          location: preConfig?.location || nodeData.location || 'Unknown',
           status: isOnline ? 'online' : 'offline',
           // 确保必需字段有默认值
           os: nodeData.os || 'Unknown',
