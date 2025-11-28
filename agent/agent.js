@@ -39,6 +39,10 @@ const CONFIG = {
   protocol: process.env.PROTOCOL || 'KVM',
   // 上报间隔 (毫秒)
   interval: parseInt(process.env.INTERVAL) || 5000,
+  // VPS 到期时间 (格式: YYYY-MM-DD，如 2025-12-31)
+  expireDate: process.env.EXPIRE_DATE || '',
+  // 流量重置日 (每月第几天重置，1-28)
+  trafficResetDay: parseInt(process.env.TRAFFIC_RESET_DAY) || 1,
 };
 
 // 网络流量统计
@@ -180,6 +184,7 @@ async function getSystemInfo() {
 
   return {
     ipAddress: getPublicIP(),
+    ipv6Address: detectIPv6(),
     os: `${os.type()} ${os.release()}`,
     uptime: os.uptime(),
     load: getLoadAverage(),
@@ -207,6 +212,33 @@ async function getSystemInfo() {
 
 // 尝试获取公网 IP
 let cachedPublicIP = '';
+let cachedPublicIPv6 = '';
+
+// 检测 IPv6 地址
+function detectIPv6() {
+  if (cachedPublicIPv6) return cachedPublicIPv6;
+
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        // 检查 IPv6 地址（非内部、非链路本地）
+        if (iface.family === 'IPv6' && !iface.internal) {
+          // 排除链路本地地址 (fe80::)
+          if (!iface.address.startsWith('fe80:') && !iface.address.startsWith('::1')) {
+            cachedPublicIPv6 = iface.address;
+            return cachedPublicIPv6;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error detecting IPv6:', e.message);
+  }
+
+  return '';
+}
+
 function getPublicIP() {
   if (cachedPublicIP) return cachedPublicIP;
 
@@ -264,6 +296,12 @@ async function report() {
     if (CONFIG.countryCode) {
       reportData.countryCode = CONFIG.countryCode;
     }
+    // 到期时间
+    if (CONFIG.expireDate) {
+      reportData.expireDate = CONFIG.expireDate;
+    }
+    // 流量重置日
+    reportData.trafficResetDay = CONFIG.trafficResetDay;
 
     const payload = JSON.stringify(reportData);
 
@@ -315,6 +353,11 @@ console.log('VPS Monitor Agent Starting...');
 console.log(`Server URL: ${CONFIG.serverUrl}`);
 console.log(`Node ID: ${CONFIG.nodeId}`);
 console.log(`Report Interval: ${CONFIG.interval}ms`);
+console.log(`IPv6: ${detectIPv6() || 'Not detected'}`);
+if (CONFIG.expireDate) {
+  console.log(`Expire Date: ${CONFIG.expireDate}`);
+}
+console.log(`Traffic Reset Day: ${CONFIG.trafficResetDay}`);
 console.log('========================================');
 
 // 初始化网络统计

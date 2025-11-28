@@ -37,21 +37,33 @@ function getRedis(): Redis | null {
 }
 
 // 从环境变量解析预配置的服务器列表
-// 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong,id2:名称2:JP:Tokyo
-function getPreConfiguredServers(): Map<string, { name: string; countryCode: string; location: string }> {
-  const servers = new Map();
+// 格式: VPS_SERVERS=id1:名称1:HK:Hong Kong:2025-12-31:1,id2:名称2:JP:Tokyo:2025-06-15:15
+// 字段: 节点ID:显示名称:国家代码:位置:到期日期:流量重置日
+interface ServerConfig {
+  name: string;
+  countryCode: string;
+  location: string;
+  expireDate?: string;
+  resetDay: number;
+}
+
+function getPreConfiguredServers(): Map<string, ServerConfig> {
+  const servers = new Map<string, ServerConfig>();
   const config = process.env.VPS_SERVERS;
 
   if (!config) return servers;
 
   try {
     config.split(',').forEach(item => {
-      const [id, name, countryCode, location] = item.trim().split(':');
+      const parts = item.trim().split(':');
+      const [id, name, countryCode, location, expireDate, resetDay] = parts;
       if (id && name) {
         servers.set(id.trim(), {
           name: name.trim(),
           countryCode: (countryCode || 'US').trim(),
           location: (location || name).trim(),
+          expireDate: expireDate?.trim() || undefined,
+          resetDay: parseInt(resetDay) || DEFAULTS.resetDay,
         });
       }
     });
@@ -63,12 +75,13 @@ function getPreConfiguredServers(): Map<string, { name: string; countryCode: str
 }
 
 // 根据预配置生成离线节点占位数据
-function generatePlaceholderNode(id: string, config: { name: string; countryCode: string; location: string }) {
+function generatePlaceholderNode(id: string, config: ServerConfig) {
   return {
     id,
     name: config.name,
     countryCode: config.countryCode,
     location: config.location,
+    expireDate: config.expireDate || '',
     status: 'offline',
     ipAddress: '-',
     protocol: 'KVM',
@@ -85,7 +98,7 @@ function generatePlaceholderNode(id: string, config: { name: string; countryCode
       totalDownload: 0,
       monthlyUsed: 0,
       monthlyTotal: DEFAULTS.monthlyTotal,
-      resetDay: DEFAULTS.resetDay,
+      resetDay: config.resetDay || DEFAULTS.resetDay,
     },
     lastUpdate: 0,
   };
@@ -162,6 +175,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // 确保 network 对象有所有必需字段
           const network = nodeData.network || {};
 
+          // 简化操作系统名称（如 "Linux 5.15.0-91-generic" -> "Debian" 或 "Ubuntu"）
+          const simplifyOS = (os: string): string => {
+            if (!os || os === 'Unknown') return 'Unknown';
+            const osLower = os.toLowerCase();
+            if (osLower.includes('debian')) return 'Debian';
+            if (osLower.includes('ubuntu')) return 'Ubuntu';
+            if (osLower.includes('centos')) return 'CentOS';
+            if (osLower.includes('rocky')) return 'Rocky';
+            if (osLower.includes('alma')) return 'AlmaLinux';
+            if (osLower.includes('fedora')) return 'Fedora';
+            if (osLower.includes('arch')) return 'Arch';
+            if (osLower.includes('alpine')) return 'Alpine';
+            if (osLower.includes('darwin') || osLower.includes('macos')) return 'macOS';
+            if (osLower.includes('windows')) return 'Windows';
+            // 如果都不匹配，尝试取 Linux 发行版名称
+            if (osLower.startsWith('linux')) return 'Linux';
+            return os.split(' ')[0] || 'Unknown'; // 返回第一个单词
+          };
+
+          // 确定流量重置日：VPS_SERVERS 配置 > Agent 上报 > 默认值
+          const resetDay = preConfig?.resetDay || nodeData.trafficResetDay || network.resetDay || DEFAULTS.resetDay;
+
           return {
             ...nodeData,
             // 环境变量配置优先
@@ -169,8 +204,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
             location: preConfig?.location || nodeData.location || 'Unknown',
             status: isOnline ? 'online' : 'offline',
-            // 确保必需字段有默认值
-            os: nodeData.os || 'Unknown',
+            // IPv6 地址
+            ipv6Address: nodeData.ipv6Address || '',
+            // 到期时间：VPS_SERVERS 配置 > Agent 上报 > 空
+            expireDate: preConfig?.expireDate || nodeData.expireDate || '',
+            // 简化操作系统名称
+            os: simplifyOS(nodeData.os),
             uptime: nodeData.uptime || 0,
             load: nodeData.load || [0, 0, 0],
             cpu: {
@@ -195,7 +234,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               totalDownload: network.totalDownload || 0,
               monthlyUsed: network.monthlyUsed || 0,
               monthlyTotal: network.monthlyTotal || DEFAULTS.monthlyTotal,
-              resetDay: network.resetDay || DEFAULTS.resetDay,
+              resetDay: resetDay,
             },
           };
         } catch (e) {

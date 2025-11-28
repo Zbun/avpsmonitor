@@ -82,9 +82,15 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
         </div>
 
         {/* 系统信息行 */}
-        <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 dark:text-gray-400">
+        <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 dark:text-gray-400 flex-wrap">
           <Monitor className="w-3 h-3" />
           <span>{node.os}</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
+          {/* IPv6 状态 */}
+          <span className={`flex items-center gap-0.5 ${node.ipv6Address ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+            <span className="font-mono">IPv6</span>
+            {node.ipv6Address ? '✓' : '✗'}
+          </span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           <Calendar className="w-3 h-3" />
           <span className={expireInfo.isExpired ? 'text-red-500' : expireInfo.isNear ? 'text-yellow-500' : ''}>
@@ -160,15 +166,15 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
             </span>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <ArrowUp className="w-3 h-3 text-green-500 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                  {formatSpeed(node.network.currentUpload)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
                 <ArrowDown className="w-3 h-3 text-blue-500 dark:text-blue-400" />
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                   {formatSpeed(node.network.currentDownload)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <ArrowUp className="w-3 h-3 text-green-500 dark:text-green-400" />
+                <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                  {formatSpeed(node.network.currentUpload)}
                 </span>
               </div>
             </div>
@@ -259,9 +265,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">CPU</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">内存</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">硬盘</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↑速度</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↓速度</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">流量</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↑速度</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center whitespace-nowrap">
                 <span className="text-blue-500">电</span>/
                 <span className="text-red-500">联</span>/
@@ -330,17 +336,17 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         }`}>{node.disk.usage.toFixed(0)}%</span>
                     </td>
 
-                    {/* 上传速度 */}
-                    <td className="px-2 py-2 text-center">
-                      <span className="text-xs text-green-600 dark:text-green-400">
-                        {formatSpeed(node.network.currentUpload)}
-                      </span>
-                    </td>
-
                     {/* 下载速度 */}
                     <td className="px-2 py-2 text-center">
                       <span className="text-xs text-blue-600 dark:text-blue-400">
                         {formatSpeed(node.network.currentDownload)}
+                      </span>
+                    </td>
+
+                    {/* 上传速度 */}
+                    <td className="px-2 py-2 text-center">
+                      <span className="text-xs text-green-600 dark:text-green-400">
+                        {formatSpeed(node.network.currentUpload)}
                       </span>
                     </td>
 
@@ -447,8 +453,14 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             <div className="font-medium text-slate-700 dark:text-white">{node.protocol}</div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IP地址</div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv4</div>
                             <div className="font-medium text-slate-700 dark:text-white">{node.ipAddress}</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
+                            <div className={`font-medium ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                              {node.ipv6Address ? '✓ 支持' : '✗ 不支持'}
+                            </div>
                           </div>
                         </div>
                       </td>

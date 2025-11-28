@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # VPS Monitor Agent 一键安装脚本
-# 使用方法: curl -fsSL https://xxx.vercel.app/install.sh | bash -s -- <SERVER_URL> <API_TOKEN> [NODE_ID]
+# 使用方法: curl -fsSL https://xxx.vercel.app/install.sh | bash -s -- <SERVER_URL> <API_TOKEN> [NODE_ID] [EXPIRE_DATE] [TRAFFIC_RESET_DAY]
 # 位置信息会根据 VPS IP 自动识别！
 
 set -e
@@ -9,10 +9,9 @@ set -e
 SERVER_URL="${1:-https://your-monitor.vercel.app}"
 API_TOKEN="${2:-your-secret-token}"
 NODE_ID="${3:-$(hostname)}"
-# 以下参数可选，留空则自动根据 IP 识别
-NODE_NAME="${4:-}"
-COUNTRY_CODE="${5:-}"
-LOCATION="${6:-}"
+# 新增可配置项
+EXPIRE_DATE="${4:-}"       # VPS 到期时间，格式: YYYY-MM-DD
+TRAFFIC_RESET_DAY="${5:-1}" # 流量重置日，1-28
 
 INSTALL_DIR="/opt/vps-agent"
 SERVICE_NAME="vps-agent"
@@ -23,6 +22,8 @@ echo "=========================================="
 echo "Server URL: $SERVER_URL"
 echo "Node ID: $NODE_ID"
 echo "位置信息: 将根据 IP 自动识别"
+[ -n "$EXPIRE_DATE" ] && echo "到期时间: $EXPIRE_DATE"
+echo "流量重置日: 每月${TRAFFIC_RESET_DAY}号"
 echo "Install Dir: $INSTALL_DIR"
 echo "=========================================="
 
@@ -53,6 +54,8 @@ const CONFIG = {
   apiToken: process.env.API_TOKEN || 'your-secret-token',
   nodeId: process.env.NODE_ID || 'node-1',
   interval: parseInt(process.env.INTERVAL) || 5000,
+  expireDate: process.env.EXPIRE_DATE || '',
+  trafficResetDay: parseInt(process.env.TRAFFIC_RESET_DAY) || 1,
 };
 
 let lastNetworkStats = null;
@@ -138,6 +141,18 @@ function getIP() {
   return '-';
 }
 
+function getIPv6() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv6' && !iface.internal && !iface.address.startsWith('fe80:')) {
+        return iface.address;
+      }
+    }
+  }
+  return '';
+}
+
 async function getSystemInfo() {
   const cpuUsage = await getCpuUsage();
   const network = calculateNetworkSpeed();
@@ -148,6 +163,7 @@ async function getSystemInfo() {
   
   return {
     ipAddress: getIP(),
+    ipv6Address: getIPv6(),
     os: `${os.type()} ${os.release()}`,
     uptime: os.uptime(),
     load: os.loadavg(),
@@ -169,7 +185,15 @@ async function report() {
   try {
     const data = await getSystemInfo();
     // 直接展开系统数据，不嵌套在 data 对象中
-    const reportData = { nodeId: CONFIG.nodeId, protocol: 'KVM', ...data };
+    const reportData = { 
+      nodeId: CONFIG.nodeId, 
+      protocol: 'KVM', 
+      ...data,
+      trafficResetDay: CONFIG.trafficResetDay,
+    };
+    if (CONFIG.expireDate) {
+      reportData.expireDate = CONFIG.expireDate;
+    }
     const payload = JSON.stringify(reportData);
     const url = new URL(`${CONFIG.serverUrl}/api/report`);
     const client = url.protocol === 'https:' ? https : http;
@@ -212,18 +236,17 @@ setTimeout(report, 1000);
 setInterval(report, CONFIG.interval);
 AGENT_EOF
 
-# 创建环境配置（只包含必需项，位置信息自动识别）
+# 创建环境配置
 cat > .env << EOF
 SERVER_URL=$SERVER_URL
 API_TOKEN=$API_TOKEN
 NODE_ID=$NODE_ID
 INTERVAL=5000
+TRAFFIC_RESET_DAY=$TRAFFIC_RESET_DAY
 EOF
 
-# 如果手动指定了可选参数，也写入配置
-[ -n "$NODE_NAME" ] && echo "NODE_NAME=$NODE_NAME" >> .env
-[ -n "$COUNTRY_CODE" ] && echo "COUNTRY_CODE=$COUNTRY_CODE" >> .env
-[ -n "$LOCATION" ] && echo "LOCATION=$LOCATION" >> .env
+# 如果指定了到期时间，也写入配置
+[ -n "$EXPIRE_DATE" ] && echo "EXPIRE_DATE=$EXPIRE_DATE" >> .env
 
 # 创建 systemd 服务
 sudo cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
