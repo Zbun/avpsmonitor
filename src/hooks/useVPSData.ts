@@ -9,6 +9,13 @@ import {
 // API 基础地址，默认使用相对路径（适配 Vercel 部署）
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// 数据刷新间隔（毫秒），默认 2 秒
+const REFRESH_INTERVAL = parseInt(import.meta.env.VITE_REFRESH_INTERVAL || '2000', 10);
+
+// 请求节流：防止并发请求
+let isFetching = false;
+let pendingFetch: Promise<VPSNode[]> | null = null;
+
 // 测量到服务器的延迟
 async function measureLatency(url: string): Promise<number | null> {
   try {
@@ -97,14 +104,37 @@ interface UseVPSDataReturn {
   runLatencyTest: () => Promise<void>;
 }
 
-// 从 API 获取数据
+// 从 API 获取数据（带请求去重和超时）
 async function fetchVPSData(): Promise<VPSNode[]> {
-  const response = await fetch(`${API_BASE_URL}/api/nodes`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch VPS data');
+  // 如果已有请求在进行，复用该请求
+  if (isFetching && pendingFetch) {
+    return pendingFetch;
   }
-  const data = await response.json();
-  return data.nodes || [];
+
+  isFetching = true;
+  pendingFetch = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+      const response = await fetch(`${API_BASE_URL}/api/nodes`, {
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch VPS data');
+      }
+      const data = await response.json();
+      return data.nodes || [];
+    } finally {
+      isFetching = false;
+      pendingFetch = null;
+    }
+  })();
+
+  return pendingFetch;
 }
 
 export function useVPSData(): UseVPSDataReturn {
@@ -159,7 +189,7 @@ export function useVPSData(): UseVPSDataReturn {
   useEffect(() => {
     const interval = setInterval(() => {
       loadData(false);
-    }, 5000); // 每5秒更新一次
+    }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
   }, [loadData]);

@@ -166,101 +166,115 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.warn('Error fetching node list:', e);
     }
 
-    // 获取每个节点的数据
-    const nodes = await Promise.all(
-      nodeIds.map(async (nodeId: string) => {
-        try {
-          const rawData = await redis.get(`${KV_PREFIX}${nodeId}`);
-          if (!rawData) {
-            // 节点数据过期，从列表中移除
-            await redis.srem('vps:nodes', nodeId);
-            return null;
-          }
+    // 使用 pipeline 批量获取所有节点数据，减少网络往返
+    const pipeline = redis.pipeline();
+    nodeIds.forEach(nodeId => {
+      pipeline.get(`${KV_PREFIX}${nodeId}`);
+    });
 
-          // 解析 JSON 数据
-          const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+    const results = await pipeline.exec();
 
-          // 检查是否超时（60秒无更新视为离线）
-          const isOnline = (now - nodeData.lastUpdate) < 60000;
-
-          // 优先使用环境变量中的配置
-          const preConfig = preConfigured.get(nodeId);
-
-          // 从预配置中移除已处理的节点
-          preConfigured.delete(nodeId);
-
-          // 确保 network 对象有所有必需字段
-          const network = nodeData.network || {};
-
-          // 简化操作系统名称（如 "Linux 5.15.0-91-generic" -> "Debian" 或 "Ubuntu"）
-          const simplifyOS = (os: string): string => {
-            if (!os || os === 'Unknown') return 'Unknown';
-            const osLower = os.toLowerCase();
-            if (osLower.includes('debian')) return 'Debian';
-            if (osLower.includes('ubuntu')) return 'Ubuntu';
-            if (osLower.includes('centos')) return 'CentOS';
-            if (osLower.includes('rocky')) return 'Rocky';
-            if (osLower.includes('alma')) return 'AlmaLinux';
-            if (osLower.includes('fedora')) return 'Fedora';
-            if (osLower.includes('arch')) return 'Arch';
-            if (osLower.includes('alpine')) return 'Alpine';
-            if (osLower.includes('darwin') || osLower.includes('macos')) return 'macOS';
-            if (osLower.includes('windows')) return 'Windows';
-            // 如果都不匹配，尝试取 Linux 发行版名称
-            if (osLower.startsWith('linux')) return 'Linux';
-            return os.split(' ')[0] || 'Unknown'; // 返回第一个单词
-          };
-
-          // 确定流量重置日：VPS_SERVERS 配置 > Agent 上报 > 默认值
-          const resetDay = preConfig?.resetDay || nodeData.trafficResetDay || network.resetDay || DEFAULTS.resetDay;
-
-          return {
-            ...nodeData,
-            // 环境变量配置优先
-            name: preConfig?.name || nodeData.name || nodeId,
-            countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
-            location: preConfig?.location || nodeData.location || 'Unknown',
-            status: isOnline ? 'online' : 'offline',
-            // IPv6 地址
-            ipv6Address: nodeData.ipv6Address || '',
-            // 到期时间：VPS_SERVERS 配置 > Agent 上报 > 空
-            expireDate: preConfig?.expireDate || nodeData.expireDate || '',
-            // 简化操作系统名称
-            os: simplifyOS(nodeData.os),
-            uptime: nodeData.uptime || 0,
-            load: nodeData.load || [0, 0, 0],
-            cpu: {
-              model: nodeData.cpu?.model || 'Unknown',
-              cores: nodeData.cpu?.cores || 1,
-              usage: isOnline ? (nodeData.cpu?.usage || 0) : 0,
-            },
-            memory: {
-              total: nodeData.memory?.total || 0,
-              used: nodeData.memory?.used || 0,
-              usage: isOnline ? (nodeData.memory?.usage || 0) : 0,
-            },
-            disk: {
-              total: nodeData.disk?.total || 0,
-              used: nodeData.disk?.used || 0,
-              usage: isOnline ? (nodeData.disk?.usage || 0) : 0,
-            },
-            network: {
-              currentUpload: isOnline ? (network.currentUpload || 0) : 0,
-              currentDownload: isOnline ? (network.currentDownload || 0) : 0,
-              totalUpload: network.totalUpload || 0,
-              totalDownload: network.totalDownload || 0,
-              monthlyUsed: network.monthlyUsed || 0,
-              // 月流量总数：VPS_SERVERS 配置 > Agent 上报 > 默认值
-              monthlyTotal: preConfig?.monthlyTotal || network.monthlyTotal || DEFAULTS.monthlyTotal,
-              resetDay: resetDay,
-            },
-          };
-        } catch (e) {
-          console.error(`Error fetching node ${nodeId}:`, e);
+    // 处理每个节点的数据
+    const nodes = nodeIds.map((nodeId: string, index: number) => {
+      try {
+        const [err, rawData] = results?.[index] || [null, null];
+        if (err || !rawData) {
+          // 节点数据过期，稍后清理
           return null;
         }
-      })
-    );
+
+        // 解析 JSON 数据
+        const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+
+        // 检查是否超时（60秒无更新视为离线）
+        const isOnline = (now - nodeData.lastUpdate) < 60000;
+
+        // 检查是否离线超过2分钟（120秒）
+        const offlineTimeout = 120000; // 2分钟
+        const isOfflineTooLong = (now - nodeData.lastUpdate) >= offlineTimeout;
+
+        // 优先使用环境变量中的配置
+        const preConfig = preConfigured.get(nodeId);
+
+        // 从预配置中移除已处理的节点
+        preConfigured.delete(nodeId);
+
+        // 如果节点离线超过2分钟且不在预配置列表中，则隐藏
+        if (isOfflineTooLong && !preConfig) {
+          return null;
+        }
+
+        // 确保 network 对象有所有必需字段
+        const network = nodeData.network || {};
+
+        // 简化操作系统名称（如 "Linux 5.15.0-91-generic" -> "Debian" 或 "Ubuntu"）
+        const simplifyOS = (os: string): string => {
+          if (!os || os === 'Unknown') return 'Unknown';
+          const osLower = os.toLowerCase();
+          if (osLower.includes('debian')) return 'Debian';
+          if (osLower.includes('ubuntu')) return 'Ubuntu';
+          if (osLower.includes('centos')) return 'CentOS';
+          if (osLower.includes('rocky')) return 'Rocky';
+          if (osLower.includes('alma')) return 'AlmaLinux';
+          if (osLower.includes('fedora')) return 'Fedora';
+          if (osLower.includes('arch')) return 'Arch';
+          if (osLower.includes('alpine')) return 'Alpine';
+          if (osLower.includes('darwin') || osLower.includes('macos')) return 'macOS';
+          if (osLower.includes('windows')) return 'Windows';
+          // 如果都不匹配，尝试取 Linux 发行版名称
+          if (osLower.startsWith('linux')) return 'Linux';
+          return os.split(' ')[0] || 'Unknown'; // 返回第一个单词
+        };
+
+        // 确定流量重置日：VPS_SERVERS 配置 > Agent 上报 > 默认值
+        const resetDay = preConfig?.resetDay || nodeData.trafficResetDay || network.resetDay || DEFAULTS.resetDay;
+
+        return {
+          ...nodeData,
+          // 环境变量配置优先
+          name: preConfig?.name || nodeData.name || nodeId,
+          countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
+          location: preConfig?.location || nodeData.location || 'Unknown',
+          status: isOnline ? 'online' : 'offline',
+          // IPv6 地址
+          ipv6Address: nodeData.ipv6Address || '',
+          // 到期时间：VPS_SERVERS 配置 > Agent 上报 > 空
+          expireDate: preConfig?.expireDate || nodeData.expireDate || '',
+          // 简化操作系统名称
+          os: simplifyOS(nodeData.os),
+          uptime: nodeData.uptime || 0,
+          load: nodeData.load || [0, 0, 0],
+          cpu: {
+            model: nodeData.cpu?.model || 'Unknown',
+            cores: nodeData.cpu?.cores || 1,
+            usage: isOnline ? (nodeData.cpu?.usage || 0) : 0,
+          },
+          memory: {
+            total: nodeData.memory?.total || 0,
+            used: nodeData.memory?.used || 0,
+            usage: isOnline ? (nodeData.memory?.usage || 0) : 0,
+          },
+          disk: {
+            total: nodeData.disk?.total || 0,
+            used: nodeData.disk?.used || 0,
+            usage: isOnline ? (nodeData.disk?.usage || 0) : 0,
+          },
+          network: {
+            currentUpload: isOnline ? (network.currentUpload || 0) : 0,
+            currentDownload: isOnline ? (network.currentDownload || 0) : 0,
+            totalUpload: network.totalUpload || 0,
+            totalDownload: network.totalDownload || 0,
+            monthlyUsed: network.monthlyUsed || 0,
+            // 月流量总数：VPS_SERVERS 配置 > Agent 上报 > 默认值
+            monthlyTotal: preConfig?.monthlyTotal || network.monthlyTotal || DEFAULTS.monthlyTotal,
+            resetDay: resetDay,
+          },
+        };
+      } catch (e) {
+        console.error(`Error processing node ${nodeId}:`, e);
+        return null;
+      }
+    });
 
     // 过滤掉 null 值
     const validNodes = nodes.filter(Boolean);

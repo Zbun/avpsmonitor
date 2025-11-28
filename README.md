@@ -171,7 +171,7 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 2. **IP 定位** → 服务端自动根据 IP 获取地理位置（使用 ip-api.com）
 3. **月流量统计** → 服务端记录每个计费周期的基准流量，自动计算月用量
 4. **数据存储** → 数据存入 Redis，设置 60 秒过期（用于判断离线）
-5. **前端展示** → 前端每 5 秒从 `/api/nodes` 获取最新数据
+5. **前端展示** → 前端定时从 `/api/nodes` 获取最新数据（默认 2 秒）
 
 ## ⚙️ 环境变量
 
@@ -184,6 +184,15 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 | `REDIS_URL` | 🔄 | Redis 连接地址（Marketplace 自动配置） | - |
 
 > 🔄 表示连接 Vercel Marketplace 的 Redis 后自动配置，无需手动设置
+
+### 前端环境变量
+
+| 变量名 | 必填 | 说明 | 默认值 |
+|--------|------|------|--------|
+| `VITE_API_URL` | ❌ | API 地址（留空使用相对路径） | 空 |
+| `VITE_REFRESH_INTERVAL` | ❌ | 数据刷新间隔（毫秒） | `2000` |
+
+> 💡 **提示**：前端环境变量需要以 `VITE_` 开头，在构建时注入。可以在 Vercel 项目设置中配置，或在本地 `.env` 文件中设置。
 
 ### VPS_SERVERS 服务器列表配置
 

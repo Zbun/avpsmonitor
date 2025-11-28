@@ -185,8 +185,12 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="text-slate-500 dark:text-gray-400">月流量 ({trafficCycle.start}-{trafficCycle.end})</span>
               <span className="text-slate-600 dark:text-gray-300 font-medium">
-                {formatBytes(node.network.monthlyUsed)}/{formatBytes(node.network.monthlyTotal)}
+                剩余 {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
               </span>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-gray-500 mb-1">
+              <span>已用 {formatBytes(node.network.monthlyUsed)}</span>
+              <span>总量 {formatBytes(node.network.monthlyTotal)}</span>
             </div>
             <ProgressBar
               value={node.network.monthlyUsed}
@@ -198,8 +202,8 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
 
           {/* 总流量 */}
           <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 mt-2">
-            <span>↑ {formatBytes(node.network.totalUpload)}</span>
-            <span>↓ {formatBytes(node.network.totalDownload)}</span>
+            <span>总上传 <span className="text-green-600 dark:text-green-400">{formatBytes(node.network.totalUpload)}</span></span>
+            <span>总下载 <span className="text-blue-600 dark:text-blue-400">{formatBytes(node.network.totalDownload)}</span></span>
           </div>
         </div>
 
@@ -358,7 +362,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             'text-red-600 dark:text-red-400'
                           }`}>{trafficPercent}%</span>
                         <span className="text-[10px] text-slate-400 dark:text-gray-500">
-                          {formatBytes(node.network.monthlyUsed)} / {formatBytes(node.network.monthlyTotal)}
+                          剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
                         </span>
                       </div>
                     </td>
@@ -425,9 +429,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             </div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">月流量</div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">剩余流量</div>
                             <div className="font-medium text-slate-700 dark:text-white">
-                              {formatBytes(node.network.monthlyUsed)}/{formatBytes(node.network.monthlyTotal)}
+                              {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
                             </div>
                           </div>
                           <div>
@@ -500,10 +504,10 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     <span className="font-medium text-sm text-slate-800 dark:text-white truncate">{node.name}</span>
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColor}`} />
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-gray-400">
-                    <span>{node.location}</span>
-                    <span className="text-blue-500">↓{formatSpeed(node.network.currentDownload)}</span>
-                    <span className="text-green-500">↑{formatSpeed(node.network.currentUpload)}</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-gray-400">
+                    <span className="truncate max-w-[80px]">{node.location}</span>
+                    <span className="text-blue-500 whitespace-nowrap">↓{formatSpeed(node.network.currentDownload)}</span>
+                    <span className="text-green-500 whitespace-nowrap">↑{formatSpeed(node.network.currentUpload)}</span>
                   </div>
                 </div>
 
@@ -524,7 +528,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   <div className="text-center min-w-[50px]">
                     <div className={`font-semibold ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
                       parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
-                      }`}>{formatBytes(node.network.monthlyUsed)}</div>
+                      }`}>{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}</div>
                     <div className="text-[9px] text-slate-400">/{formatBytes(node.network.monthlyTotal)}</div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -571,9 +575,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         }`}>{expireInfo.text}</div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">月流量</div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">剩余流量</div>
                       <div className="font-medium text-slate-700 dark:text-white">
-                        {formatBytes(node.network.monthlyUsed)}/{formatBytes(node.network.monthlyTotal)}
+                        {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
                       </div>
                     </div>
                     <div>
