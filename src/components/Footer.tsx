@@ -1,5 +1,5 @@
 import React from 'react';
-import { Github, Heart, ExternalLink } from 'lucide-react';
+import { Github, Heart, ExternalLink, Server } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -7,14 +7,17 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
+            <Server className="w-4 h-4" />
+            <span>Powered by</span>
+            <span className="text-slate-700 dark:text-gray-300">Vercel + KV</span>
+            <span className="text-slate-300 dark:text-gray-600">·</span>
             <span>Made with</span>
             <Heart className="w-4 h-4 text-red-500 fill-red-500" />
-            <span>using React + Tailwind CSS</span>
           </div>
 
           <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-gray-400">
             <a
-              href="https://github.com"
+              href="https://github.com/Zbun/avpsmonitor"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white transition-colors"
@@ -30,8 +33,7 @@ export const Footer: React.FC = () => {
 
         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700/50 text-center text-xs text-slate-400 dark:text-gray-500">
           <p>
-            本项目为纯前端实现，实际使用需配合后端 API 获取真实服务器数据。
-            部署后可通过配置文件自定义节点信息。
+            一键部署到 Vercel，VPS 安装 Agent 即可监控。支持 IP 自动识别位置，无需手动配置。
           </p>
         </div>
       </div>

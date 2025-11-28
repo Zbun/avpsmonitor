@@ -109,22 +109,33 @@ function App() {
 
         {/* 说明信息 */}
         <div className="mt-4 bg-white/80 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700/50">
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">使用说明</h3>
-          <div className="grid md:grid-cols-2 gap-6 text-sm text-slate-600 dark:text-gray-400">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">快速开始</h3>
+          <div className="grid md:grid-cols-3 gap-6 text-sm text-slate-600 dark:text-gray-400">
             <div>
-              <h4 className="text-slate-700 dark:text-white font-medium mb-2">关于数据</h4>
+              <h4 className="text-slate-700 dark:text-white font-medium mb-2">1. 部署监控站</h4>
               <ul className="space-y-1 list-disc list-inside">
-                <li>当前显示为模拟数据，实际部署需配合后端 API</li>
-                <li>数据每 5 秒自动更新一次</li>
-                <li>点击刷新按钮可手动获取最新数据</li>
+                <li>Fork 项目到你的 GitHub</li>
+                <li>在 Vercel 导入项目</li>
+                <li>创建 Vercel KV 存储</li>
+                <li>设置环境变量 <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">API_TOKEN</code></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-slate-700 dark:text-white font-medium mb-2">部署方式</h4>
+              <h4 className="text-slate-700 dark:text-white font-medium mb-2">2. 安装 Agent</h4>
               <ul className="space-y-1 list-disc list-inside">
-                <li>支持 Vercel、Netlify、GitHub Pages 等平台</li>
-                <li>运行 <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">npm run build</code> 构建生产版本</li>
-                <li>修改 <code className="bg-slate-200 dark:bg-slate-700 px-1 rounded">src/data/mockData.ts</code> 配置节点</li>
+                <li>在 VPS 上运行一键安装脚本</li>
+                <li>只需 URL 和 Token 两个参数</li>
+                <li>位置信息根据 IP 自动识别</li>
+                <li>数据每 5 秒自动上报</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-slate-700 dark:text-white font-medium mb-2">3. 功能特性</h4>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>CPU / 内存 / 磁盘监控</li>
+                <li>实时网络速度</li>
+                <li>IP 自动识别国家城市</li>
+                <li>60 秒无响应自动离线</li>
               </ul>
             </div>
           </div>

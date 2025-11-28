@@ -346,10 +346,15 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                     {/* 月流量 */}
                     <td className="px-2 py-2 text-center">
-                      <span className={`text-xs font-medium ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
-                        parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>{trafficPercent}%</span>
+                      <div className="flex flex-col items-center">
+                        <span className={`text-xs font-medium ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
+                          parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' :
+                            'text-red-600 dark:text-red-400'
+                          }`}>{formatBytes(node.network.monthlyUsed)}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-gray-500">
+                          / {formatBytes(node.network.monthlyTotal)}
+                        </span>
+                      </div>
                     </td>
 
                     {/* 三网延迟 */}
@@ -504,11 +509,11 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                       }`}>{node.memory.usage.toFixed(0)}%</div>
                     <div className="text-[9px] text-slate-400">内存</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center min-w-[50px]">
                     <div className={`font-semibold ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
                       parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
-                      }`}>{trafficPercent}%</div>
-                    <div className="text-[9px] text-slate-400">流量</div>
+                      }`}>{formatBytes(node.network.monthlyUsed)}</div>
+                    <div className="text-[9px] text-slate-400">/{formatBytes(node.network.monthlyTotal)}</div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>

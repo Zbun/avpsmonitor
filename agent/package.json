@@ -1,0 +1,12 @@
+{
+  "name": "avpsmonitor-agent",
+  "version": "1.0.0",
+  "description": "VPS Monitor Agent - Run on each VPS",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "systeminformation": "^5.21.20"
+  }
+}

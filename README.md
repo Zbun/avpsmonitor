@@ -124,34 +124,68 @@ export const mockVPSNodes: VPSNode[] = [
 
 ## 🔧 接入真实数据
 
-本项目默认使用模拟数据，要接入真实 VPS 数据，你需要：
+本项目支持一键部署到 Vercel，无需独立后端服务。VPS 上运行 Agent 直接上报数据到 Vercel。
 
-### 方案一：使用后端 API
+### 架构说明
 
-1. 在每台 VPS 上部署一个轻量级数据收集脚本
-2. 搭建一个 API 服务聚合所有节点数据
-3. 修改 `src/hooks/useVPSData.ts` 中的数据获取逻辑
-
-```typescript
-// 示例：从 API 获取数据
-const fetchNodes = async () => {
-  const response = await fetch('https://your-api.com/nodes');
-  const data = await response.json();
-  setNodes(data);
-};
+```
+┌─────────┐      ┌─────────────────────────┐
+│   VPS   │ ───► │   Vercel                │
+│  Agent  │      │  ┌──────────┐ ┌───────┐ │
+└─────────┘      │  │ API 函数 │ │ React │ │
+                 │  │ (KV存储) │ │ 前端  │ │
+                 │  └──────────┘ └───────┘ │
+                 └─────────────────────────┘
 ```
 
-### 方案二：Serverless 函数
+### 1. 部署到 Vercel
 
-1. 在 Vercel/Netlify 中创建 Serverless 函数
-2. 函数内部调用各 VPS 的状态 API
-3. 前端从 Serverless 函数获取数据
+1. Fork 或 clone 本仓库
+2. 在 [Vercel](https://vercel.com) 导入项目
+3. **配置 Vercel KV 存储**：
+   - 在 Vercel Dashboard → Storage → Create Database → KV
+   - 连接到你的项目
+4. **配置环境变量**：
+   - `API_TOKEN`: 设置一个安全的 Token（Agent 上报时需要）
+   - `VITE_USE_REAL_API`: 设置为 `true`
+5. 部署完成！
 
-### 常用 VPS 监控脚本
+### 2. 在 VPS 上安装 Agent
 
-- [ServerStatus](https://github.com/cppla/ServerStatus) - 多服务器监控
-- [Nezha](https://github.com/naiba/nezha) - 哪吒监控
-- [NodeQuery](https://nodequery.com/) - 节点监控服务
+一键安装（替换为你的实际地址和 Token）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/your-repo/avpsmonitor/main/agent/install.sh | bash -s -- \
+  https://your-app.vercel.app \
+  your-api-token \
+  node-1 \
+  "香港CN2" \
+  HK \
+  "Hong Kong"
+```
+
+参数说明：
+- `SERVER_URL` - 你的 Vercel 部署地址
+- `API_TOKEN` - 与 Vercel 环境变量中配置的一致
+- `NODE_ID` - 节点唯一 ID
+- `NODE_NAME` - 显示名称
+- `COUNTRY_CODE` - 国家代码（显示国旗）
+- `LOCATION` - 位置描述
+
+详细说明见 [agent/README.md](./agent/README.md)
+
+### 目录结构
+
+```
+avpsmonitor/
+├── api/                 # Vercel Serverless 函数
+│   ├── nodes.ts         # 获取节点数据
+│   └── report.ts        # 接收 Agent 上报
+├── agent/               # VPS Agent
+│   ├── agent.js         # Agent 脚本（零依赖）
+│   └── install.sh       # 一键安装脚本
+└── src/                 # 前端代码
+```
 
 ## 🛠️ 技术栈
 
@@ -160,34 +194,29 @@ const fetchNodes = async () => {
 - **Vite 5** - 构建工具
 - **Tailwind CSS 3** - 样式框架
 - **Lucide React** - 图标库
+- **Vercel KV** - 数据存储
+- **Vercel Serverless** - API 函数
 
 ## 📁 项目结构
 
 ```
 avpsmonitor/
 ├── public/              # 静态资源
+├── api/                 # Vercel Serverless 函数
+│   ├── nodes.ts         # 获取节点数据 API
+│   └── report.ts        # Agent 上报 API
+├── agent/               # VPS Agent
+│   ├── agent.js         # 监控脚本
+│   └── install.sh       # 一键安装
 ├── src/
 │   ├── components/      # React 组件
-│   │   ├── Header.tsx
-│   │   ├── Footer.tsx
-│   │   ├── VPSCard.tsx
-│   │   ├── ProgressBar.tsx
-│   │   └── LatencyPanel.tsx
-│   ├── data/           # 数据配置
-│   │   └── mockData.ts
+│   ├── data/           # Mock 数据
 │   ├── hooks/          # 自定义 Hooks
-│   │   ├── useVPSData.ts
-│   │   └── usePing.ts
 │   ├── types/          # TypeScript 类型
-│   │   └── index.ts
-│   ├── App.tsx         # 主应用组件
-│   ├── main.tsx        # 入口文件
-│   └── index.css       # 全局样式
-├── index.html
-├── package.json
-├── tailwind.config.js
-├── tsconfig.json
-└── vite.config.ts
+│   ├── App.tsx         # 主应用
+│   └── main.tsx        # 入口
+├── vercel.json          # Vercel 配置
+└── package.json
 ```
 
 ## 📝 License

@@ -6,7 +6,7 @@ import {
   Minus,
   RefreshCw
 } from 'lucide-react';
-import { VPSNode, LatencyTest, ISPLatency } from '../types';
+import { VPSNode, LatencyTest } from '../types';
 import { getLatencyColor } from '../types';
 
 interface LatencyPanelProps {

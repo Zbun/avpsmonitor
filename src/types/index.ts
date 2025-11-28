@@ -6,7 +6,7 @@ export interface VPSNode {
   location: string;
   countryCode: string;  // ISO 3166-1 alpha-2 国家代码，用于国旗展示
   ipAddress: string;
-  protocol: 'TCP' | 'UDP' | 'HTTP' | 'HTTPS' | 'WebSocket' | 'SSH';
+  protocol: string;     // 协议或虚拟化类型，如 TCP/UDP/KVM/OpenVZ 等
   status: 'online' | 'offline' | 'warning';
 
   // 系统信息
