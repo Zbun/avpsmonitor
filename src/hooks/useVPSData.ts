@@ -3,23 +3,19 @@ import { VPSNode, LatencyTest, ISPLatency, getLatencyStatus } from '../types';
 import {
   generateDemoNodes,
   generateLatencyTests,
-  updateMockData,
   updateLatencyTests
 } from '../data/mockData';
 
 // API 基础地址，默认使用相对路径（适配 Vercel 部署）
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// 是否使用真实 API（设置为 false 则使用 Demo 数据）
-const USE_REAL_API = import.meta.env.VITE_USE_REAL_API === 'true';
-
 // 测量到服务器的延迟
 async function measureLatency(url: string): Promise<number | null> {
   try {
     const start = performance.now();
-    // 使用 HEAD 请求减少数据传输
+    // 使用 GET 请求（因为 Vercel Serverless 只允许 GET/POST）
     const response = await fetch(url, {
-      method: 'HEAD',
+      method: 'GET',
       cache: 'no-cache',
       mode: 'cors',
     });
@@ -111,18 +107,6 @@ async function fetchVPSData(): Promise<VPSNode[]> {
   return data.nodes || [];
 }
 
-// 模拟 API 请求（带延迟，模拟网络请求效果）
-async function mockFetchVPSData(currentNodes: VPSNode[]): Promise<VPSNode[]> {
-  // 模拟网络延迟 200-500ms
-  await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
-
-  // 如果是首次加载，生成新数据；否则更新现有数据
-  if (currentNodes.length === 0) {
-    return generateDemoNodes();
-  }
-  return updateMockData(currentNodes);
-}
-
 export function useVPSData(): UseVPSDataReturn {
   const [nodes, setNodes] = useState<VPSNode[]>([]);
   const [latencyTests, setLatencyTests] = useState<LatencyTest[]>([]);
@@ -130,33 +114,23 @@ export function useVPSData(): UseVPSDataReturn {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
+  // 标记是否使用 Demo 数据（API 失败时回退）
+  const [usingDemo, setUsingDemo] = useState(false);
 
   // 加载数据的函数
   const loadData = useCallback(async (isInitial = false) => {
     try {
-      let data: VPSNode[];
-
-      if (USE_REAL_API) {
-        // 使用真实 API
-        data = await fetchVPSData();
-      } else {
-        // 使用 Demo 数据（模拟 API 请求）
-        data = await mockFetchVPSData(isInitial ? [] : nodes);
-      }
+      // 默认使用真实 API
+      const data = await fetchVPSData();
 
       setNodes(data);
       setLastUpdate(Date.now());
+      setUsingDemo(false);
 
       // 如果是首次加载，同时生成延迟测试数据
       if (isInitial || latencyTests.length === 0) {
-        if (USE_REAL_API) {
-          // 真实 API 模式：执行真实延迟测试
-          const tests = await performRealLatencyTest(data);
-          setLatencyTests(tests);
-        } else {
-          // Demo 模式：使用模拟数据
-          setLatencyTests(generateLatencyTests(data));
-        }
+        const tests = await performRealLatencyTest(data);
+        setLatencyTests(tests);
       }
     } catch (error) {
       console.error('Failed to fetch VPS data:', error);
@@ -165,6 +139,7 @@ export function useVPSData(): UseVPSDataReturn {
         const demoData = generateDemoNodes();
         setNodes(demoData);
         setLatencyTests(generateLatencyTests(demoData));
+        setUsingDemo(true);
       }
     }
   }, [nodes, latencyTests.length]);
@@ -201,7 +176,7 @@ export function useVPSData(): UseVPSDataReturn {
     setIsTesting(true);
 
     try {
-      if (USE_REAL_API && nodes.length > 0) {
+      if (!usingDemo && nodes.length > 0) {
         // 真实 API 模式：执行真实延迟测试
         const tests = await performRealLatencyTest(nodes);
         setLatencyTests(tests);
@@ -215,7 +190,7 @@ export function useVPSData(): UseVPSDataReturn {
     }
 
     setIsTesting(false);
-  }, [nodes]);
+  }, [nodes, usingDemo]);
 
   return {
     nodes,

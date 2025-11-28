@@ -161,6 +161,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // ===== 月流量统计逻辑 =====
+    const trafficResetDay = data.trafficResetDay || 1;
+    const now = new Date();
+    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // 计算当前计费周期的开始时间
+    let cycleStartDate: Date;
+    if (currentDay >= trafficResetDay) {
+      // 当前日期 >= 重置日，周期从本月重置日开始
+      cycleStartDate = new Date(currentYear, currentMonth, trafficResetDay);
+    } else {
+      // 当前日期 < 重置日，周期从上月重置日开始
+      cycleStartDate = new Date(currentYear, currentMonth - 1, trafficResetDay);
+    }
+    const cycleStartKey = `${cycleStartDate.getFullYear()}-${cycleStartDate.getMonth() + 1}-${cycleStartDate.getDate()}`;
+
+    // 获取或创建月流量基准数据
+    const trafficKey = `vps:traffic:${nodeId}`;
+    let trafficData: { cycleStart: string; baseUpload: number; baseDownload: number } | null = null;
+
+    try {
+      const rawTraffic = await redis.get(trafficKey);
+      if (rawTraffic) {
+        trafficData = typeof rawTraffic === 'string' ? JSON.parse(rawTraffic) : rawTraffic;
+      }
+    } catch (e) {
+      console.warn('Error reading traffic data:', e);
+    }
+
+    const totalUpload = data.network?.totalUpload || 0;
+    const totalDownload = data.network?.totalDownload || 0;
+
+    // 判断是否需要重置基准（新周期或首次连接）
+    if (!trafficData || trafficData.cycleStart !== cycleStartKey) {
+      // 新周期或首次连接，记录当前值作为基准
+      trafficData = {
+        cycleStart: cycleStartKey,
+        baseUpload: totalUpload,
+        baseDownload: totalDownload,
+      };
+      // 保存基准数据（设置较长过期时间，如 45 天）
+      await redis.setex(trafficKey, 45 * 24 * 60 * 60, JSON.stringify(trafficData));
+    }
+
+    // 计算本月已用流量
+    const monthlyUpload = Math.max(0, totalUpload - trafficData.baseUpload);
+    const monthlyDownload = Math.max(0, totalDownload - trafficData.baseDownload);
+    const monthlyUsed = monthlyUpload + monthlyDownload;
+
     // 存储节点数据到 Redis，设置 60 秒过期（节点超时即自动清除）
     const nodeData = {
       id: nodeId,
@@ -171,6 +222,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       countryCode: countryCode || 'US',
       lastUpdate: Date.now(),
       status: 'online',
+      // 覆盖月流量数据
+      network: {
+        ...data.network,
+        monthlyUsed: monthlyUsed,
+      },
     };
 
     await redis.setex(`${KV_PREFIX}${nodeId}`, 60, JSON.stringify(nodeData));

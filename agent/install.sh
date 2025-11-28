@@ -153,6 +153,23 @@ function getIPv6() {
   return '';
 }
 
+function getOSInfo() {
+  if (process.platform === 'linux') {
+    try {
+      if (fs.existsSync('/etc/os-release')) {
+        const content = fs.readFileSync('/etc/os-release', 'utf-8');
+        for (const line of content.split('\\n')) {
+          if (line.startsWith('PRETTY_NAME=')) {
+            return line.split('=')[1].replace(/"/g, '').trim();
+          }
+        }
+      }
+    } catch (e) {}
+    return 'Linux ' + os.release();
+  }
+  return os.type() + ' ' + os.release();
+}
+
 async function getSystemInfo() {
   const cpuUsage = await getCpuUsage();
   const network = calculateNetworkSpeed();
@@ -164,7 +181,7 @@ async function getSystemInfo() {
   return {
     ipAddress: getIP(),
     ipv6Address: getIPv6(),
-    os: `${os.type()} ${os.release()}`,
+    os: getOSInfo(),
     uptime: os.uptime(),
     load: os.loadavg(),
     status: 'online',

@@ -168,6 +168,66 @@ function getLoadAverage() {
   return [load[0] || 0, load[1] || 0, load[2] || 0];
 }
 
+// 获取操作系统发行版信息
+function getOSInfo() {
+  const platform = process.platform;
+
+  if (platform === 'linux') {
+    try {
+      const fs = require('fs');
+      // 尝试读取 /etc/os-release 获取发行版信息
+      if (fs.existsSync('/etc/os-release')) {
+        const content = fs.readFileSync('/etc/os-release', 'utf-8');
+        const lines = content.split('\n');
+        let prettyName = '';
+        let name = '';
+        let version = '';
+
+        for (const line of lines) {
+          if (line.startsWith('PRETTY_NAME=')) {
+            prettyName = line.split('=')[1].replace(/"/g, '').trim();
+          } else if (line.startsWith('NAME=')) {
+            name = line.split('=')[1].replace(/"/g, '').trim();
+          } else if (line.startsWith('VERSION_ID=')) {
+            version = line.split('=')[1].replace(/"/g, '').trim();
+          }
+        }
+
+        // 优先使用 PRETTY_NAME，否则使用 NAME + VERSION
+        if (prettyName) {
+          return prettyName;
+        } else if (name) {
+          return version ? `${name} ${version}` : name;
+        }
+      }
+
+      // 备选方案：尝试读取 /etc/issue
+      if (fs.existsSync('/etc/issue')) {
+        const content = fs.readFileSync('/etc/issue', 'utf-8').split('\n')[0].trim();
+        if (content && !content.includes('\\')) {
+          return content;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading OS info:', e.message);
+    }
+
+    // 如果都读取失败，返回内核信息
+    return `Linux ${os.release()}`;
+  } else if (platform === 'darwin') {
+    try {
+      const version = execSync('sw_vers -productVersion', { encoding: 'utf-8' }).trim();
+      return `macOS ${version}`;
+    } catch (e) {
+      return 'macOS';
+    }
+  } else if (platform === 'win32') {
+    return `Windows ${os.release()}`;
+  }
+
+  return `${os.type()} ${os.release()}`;
+}
+
 // 获取系统信息
 async function getSystemInfo() {
   const cpuUsage = await getCpuUsage();
@@ -185,7 +245,7 @@ async function getSystemInfo() {
   return {
     ipAddress: getPublicIP(),
     ipv6Address: detectIPv6(),
-    os: `${os.type()} ${os.release()}`,
+    os: getOSInfo(),
     uptime: os.uptime(),
     load: getLoadAverage(),
     status: 'online',

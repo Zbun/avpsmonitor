@@ -502,8 +502,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-gray-400">
                     <span>{node.location}</span>
-                    <span className="text-green-500">↑{formatSpeed(node.network.currentUpload)}</span>
                     <span className="text-blue-500">↓{formatSpeed(node.network.currentDownload)}</span>
+                    <span className="text-green-500">↑{formatSpeed(node.network.currentUpload)}</span>
                   </div>
                 </div>
 
