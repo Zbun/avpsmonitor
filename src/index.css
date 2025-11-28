@@ -133,6 +133,11 @@ body {
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* Prevent layout shift on scrollbar */
+html {
+  overflow-y: scroll;
+}
+
 /* Theme transition */
 * {
   transition: background-color 0.2s ease, border-color 0.2s ease;

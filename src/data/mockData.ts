@@ -10,8 +10,10 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '103.xxx.xxx.1',
     protocol: 'HTTPS',
     status: 'online',
+    os: 'Ubuntu 22.04 LTS',
     uptime: 2592000, // 30天
     load: [0.15, 0.22, 0.18],
+    expireDate: '2025-06-15',
     cpu: {
       cores: 2,
       usage: 15.5,
@@ -34,6 +36,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 335007449088, // 312GB
       currentUpload: 1048576,      // 1MB/s
       currentDownload: 5242880,    // 5MB/s
+      resetDay: 1,                 // 每月1号重置
     },
     lastUpdate: Date.now(),
   },
@@ -45,8 +48,10 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '45.xxx.xxx.2',
     protocol: 'HTTPS',
     status: 'online',
+    os: 'Debian 12',
     uptime: 864000, // 10天
     load: [0.45, 0.52, 0.48],
+    expireDate: '2025-03-20',
     cpu: {
       cores: 4,
       usage: 42.3,
@@ -69,6 +74,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 557486755021, // 519GB
       currentUpload: 524288,       // 512KB/s
       currentDownload: 2097152,    // 2MB/s
+      resetDay: 15,                // 每月15号重置
     },
     lastUpdate: Date.now(),
   },
@@ -80,8 +86,10 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '23.xxx.xxx.3',
     protocol: 'WebSocket',
     status: 'online',
+    os: 'CentOS 7',
     uptime: 5184000, // 60天
     load: [0.08, 0.12, 0.10],
+    expireDate: '2026-01-01',
     cpu: {
       cores: 1,
       usage: 8.2,
@@ -104,6 +112,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 134002979635, // 125GB
       currentUpload: 262144,       // 256KB/s
       currentDownload: 1048576,    // 1MB/s
+      resetDay: 8,                 // 每月8号重置
     },
     lastUpdate: Date.now(),
   },
@@ -115,8 +124,10 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '103.xxx.xxx.4',
     protocol: 'HTTPS',
     status: 'warning',
+    os: 'Ubuntu 20.04 LTS',
     uptime: 172800, // 2天
     load: [1.85, 1.92, 1.78],
+    expireDate: '2024-12-15',
     cpu: {
       cores: 2,
       usage: 85.7,
@@ -139,6 +150,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 560063735398, // 521GB
       currentUpload: 3145728,      // 3MB/s
       currentDownload: 8388608,    // 8MB/s
+      resetDay: 20,                // 每月20号重置
     },
     lastUpdate: Date.now(),
   },
@@ -150,8 +162,10 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '185.xxx.xxx.5',
     protocol: 'SSH',
     status: 'offline',
+    os: 'Debian 11',
     uptime: 0,
     load: [0, 0, 0],
+    expireDate: '2025-08-30',
     cpu: {
       cores: 2,
       usage: 0,
@@ -174,6 +188,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 444958611866, // 414GB
       currentUpload: 0,
       currentDownload: 0,
+      resetDay: 1,                 // 每月1号重置
     },
     lastUpdate: Date.now() - 3600000, // 1小时前
   },
@@ -185,6 +200,7 @@ export const mockVPSNodes: VPSNode[] = [
     ipAddress: '121.xxx.xxx.6',
     protocol: 'TCP',
     status: 'online',
+    os: 'Rocky Linux 9',
     uptime: 1296000, // 15天
     load: [0.32, 0.28, 0.35],
     cpu: {
@@ -209,6 +225,7 @@ export const mockVPSNodes: VPSNode[] = [
       totalDownload: 1005022347264,// 936GB
       currentUpload: 2097152,      // 2MB/s
       currentDownload: 10485760,   // 10MB/s
+      resetDay: 25,                // 每月25号重置
     },
     lastUpdate: Date.now(),
   },

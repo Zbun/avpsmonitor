@@ -10,8 +10,12 @@ export interface VPSNode {
   status: 'online' | 'offline' | 'warning';
 
   // 系统信息
-  uptime: number;  // 开机时间（秒）
+  os: string;           // 操作系统，如 "Ubuntu 22.04"
+  uptime: number;       // 开机时间（秒）
   load: [number, number, number];  // 1分钟、5分钟、15分钟负载
+
+  // 到期信息
+  expireDate?: string;  // 到期时间，如 "2025-12-31"
 
   // 资源使用
   cpu: {
@@ -38,6 +42,7 @@ export interface VPSNode {
     totalDownload: number;     // 总下载（字节）
     currentUpload: number;     // 当前上传速度（字节/秒）
     currentDownload: number;   // 当前下载速度（字节/秒）
+    resetDay: number;          // 流量重置日（1-28，表示每月几号重置）
   };
 
   // 最后更新时间
@@ -172,4 +177,58 @@ export function getUsageBgColor(percentage: number): string {
   if (percentage < 60) return 'bg-green-500/20';
   if (percentage < 80) return 'bg-yellow-500/20';
   return 'bg-red-500/20';
+}
+
+// 计算流量周期
+export function getTrafficCycle(resetDay: number): { start: string; end: string } {
+  const now = new Date();
+  const currentDay = now.getDate();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  let startDate: Date;
+  let endDate: Date;
+
+  if (currentDay >= resetDay) {
+    // 当前日期 >= 重置日，周期为本月重置日到下月重置日前一天
+    startDate = new Date(currentYear, currentMonth, resetDay);
+    endDate = new Date(currentYear, currentMonth + 1, resetDay - 1);
+  } else {
+    // 当前日期 < 重置日，周期为上月重置日到本月重置日前一天
+    startDate = new Date(currentYear, currentMonth - 1, resetDay);
+    endDate = new Date(currentYear, currentMonth, resetDay - 1);
+  }
+
+  const formatDate = (date: Date) => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  };
+
+  return {
+    start: formatDate(startDate),
+    end: formatDate(endDate),
+  };
+}
+
+// 格式化到期时间
+export function formatExpireDate(dateStr?: string): { text: string; isNear: boolean; isExpired: boolean } {
+  if (!dateStr) return { text: '永久', isNear: false, isExpired: false };
+
+  const expireDate = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+  const year = expireDate.getFullYear();
+  const month = expireDate.getMonth() + 1;
+  const day = expireDate.getDate();
+  const text = `${year}/${month}/${day}`;
+
+  if (diffDays < 0) {
+    return { text: `已过期`, isNear: false, isExpired: true };
+  } else if (diffDays <= 30) {
+    return { text: `${text} (${diffDays}天)`, isNear: true, isExpired: false };
+  }
+
+  return { text, isNear: false, isExpired: false };
 }

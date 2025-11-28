@@ -14,17 +14,12 @@ const THEME_STORAGE_KEY = 'vps-monitor-theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // 从 localStorage 读取主题，如果没有则使用系统偏好
+    // 从 localStorage 读取主题，如果没有则默认亮色模式
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme;
       if (stored) return stored;
-
-      // 检查系统偏好
-      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-        return 'light';
-      }
     }
-    return 'dark';
+    return 'light'; // 默认亮色模式
   });
 
   // 更新主题时同步到 DOM 和 localStorage
