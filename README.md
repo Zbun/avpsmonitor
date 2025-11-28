@@ -92,9 +92,9 @@ npm run build
 
 ## 📡 安装 Agent
 
-在你的 VPS 上运行以下命令安装监控 Agent：
+在你的 VPS 上运行以下命令安装监控 Agent（Shell 轻量版，内存占用 < 1MB）：
 
-### 一键安装（推荐）
+### 一键安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/install.sh | bash -s -- \
@@ -108,23 +108,25 @@ curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/install
 |------|------|------|
 | `SERVER_URL` | Vercel 部署地址 | `https://vps.vercel.app` |
 | `API_TOKEN` | API 认证 Token | `your-secret-token` |
-| `NODE_ID` | 节点唯一标识 | `hk-01` |
+| `NODE_ID` | 节点唯一标识（可选，默认使用主机名） | `hk-01` |
 
 > 💡 **位置自动识别**：服务端会根据 VPS 的 IP 地址自动识别地区和运营商，无需手动配置！
+>
+> 🔄 **重装自动清理**：重新安装时会自动清理旧服务，无需手动卸载
 
 ### 手动安装
 
 ```bash
 # 下载 Agent
-curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/agent.js -o /opt/vps-agent/agent.js
+mkdir -p /opt/vps-agent
+curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/agent.sh -o /opt/vps-agent/agent.sh
+chmod +x /opt/vps-agent/agent.sh
 
-# 编辑配置
-export SERVER_URL="https://your-app.vercel.app"
-export API_TOKEN="your-api-token"
-export NODE_ID="my-vps-01"
-
-# 运行
-node /opt/vps-agent/agent.js
+# 设置环境变量并运行
+SERVER_URL="https://your-app.vercel.app" \
+API_TOKEN="your-api-token" \
+NODE_ID="my-vps-01" \
+/opt/vps-agent/agent.sh
 ```
 
 ### Agent 管理
