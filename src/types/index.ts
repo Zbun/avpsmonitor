@@ -1,0 +1,175 @@
+// VPS 服务器数据类型定义
+
+export interface VPSNode {
+  id: string;
+  name: string;
+  location: string;
+  countryCode: string;  // ISO 3166-1 alpha-2 国家代码，用于国旗展示
+  ipAddress: string;
+  protocol: 'TCP' | 'UDP' | 'HTTP' | 'HTTPS' | 'WebSocket' | 'SSH';
+  status: 'online' | 'offline' | 'warning';
+
+  // 系统信息
+  uptime: number;  // 开机时间（秒）
+  load: [number, number, number];  // 1分钟、5分钟、15分钟负载
+
+  // 资源使用
+  cpu: {
+    cores: number;
+    usage: number;  // 百分比
+    model: string;
+  };
+  memory: {
+    total: number;  // 字节
+    used: number;   // 字节
+    usage: number;  // 百分比
+  };
+  disk: {
+    total: number;  // 字节
+    used: number;   // 字节
+    usage: number;  // 百分比
+  };
+
+  // 网络流量
+  network: {
+    monthlyTotal: number;      // 月流量限制（字节）
+    monthlyUsed: number;       // 月已用流量（字节）
+    totalUpload: number;       // 总上传（字节）
+    totalDownload: number;     // 总下载（字节）
+    currentUpload: number;     // 当前上传速度（字节/秒）
+    currentDownload: number;   // 当前下载速度（字节/秒）
+  };
+
+  // 最后更新时间
+  lastUpdate: number;  // 时间戳
+}
+
+export interface ISPLatency {
+  name: string;
+  code: 'CT' | 'CU' | 'CM';  // 电信、联通、移动
+  latency: number | null;    // 延迟（毫秒），null 表示不可达
+  status: 'good' | 'medium' | 'poor' | 'offline';
+  packetLoss: number;        // 丢包率百分比
+}
+
+export interface LatencyTest {
+  nodeId: string;
+  isps: ISPLatency[];
+  lastTest: number;  // 时间戳
+}
+
+// 国旗 emoji 映射
+export const countryFlags: Record<string, string> = {
+  'CN': '🇨🇳',
+  'US': '🇺🇸',
+  'JP': '🇯🇵',
+  'KR': '🇰🇷',
+  'SG': '🇸🇬',
+  'HK': '🇭🇰',
+  'TW': '🇹🇼',
+  'DE': '🇩🇪',
+  'GB': '🇬🇧',
+  'FR': '🇫🇷',
+  'NL': '🇳🇱',
+  'RU': '🇷🇺',
+  'CA': '🇨🇦',
+  'AU': '🇦🇺',
+  'IN': '🇮🇳',
+  'BR': '🇧🇷',
+};
+
+// 获取国旗 emoji
+export function getCountryFlag(countryCode: string): string {
+  return countryFlags[countryCode.toUpperCase()] || '🏳️';
+}
+
+// 格式化字节
+export function formatBytes(bytes: number, decimals = 2): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+// 格式化网络速度
+export function formatSpeed(bytesPerSecond: number): string {
+  if (bytesPerSecond === 0) return '0 B/s';
+  const k = 1024;
+  const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
+  return parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 格式化运行时间
+export function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days}天 ${hours}小时`;
+  } else if (hours > 0) {
+    return `${hours}小时 ${minutes}分钟`;
+  } else {
+    return `${minutes}分钟`;
+  }
+}
+
+// 格式化百分比
+export function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+// 获取状态颜色
+export function getStatusColor(status: 'online' | 'offline' | 'warning'): string {
+  switch (status) {
+    case 'online':
+      return 'bg-green-500';
+    case 'offline':
+      return 'bg-red-500';
+    case 'warning':
+      return 'bg-yellow-500';
+    default:
+      return 'bg-gray-500';
+  }
+}
+
+// 获取延迟状态
+export function getLatencyStatus(latency: number | null): ISPLatency['status'] {
+  if (latency === null) return 'offline';
+  if (latency < 50) return 'good';
+  if (latency < 150) return 'medium';
+  return 'poor';
+}
+
+// 获取延迟颜色 - 同时支持暗色和亮色模式
+export function getLatencyColor(status: ISPLatency['status']): string {
+  switch (status) {
+    case 'good':
+      return 'dark:text-green-400 text-green-600';
+    case 'medium':
+      return 'dark:text-yellow-400 text-yellow-600';
+    case 'poor':
+      return 'dark:text-orange-400 text-orange-600';
+    case 'offline':
+      return 'dark:text-red-400 text-red-600';
+    default:
+      return 'dark:text-gray-400 text-gray-600';
+  }
+}
+
+// 获取使用率颜色
+export function getUsageColor(percentage: number): string {
+  if (percentage < 60) return 'bg-green-500';
+  if (percentage < 80) return 'bg-yellow-500';
+  return 'bg-red-500';
+}
+
+// 获取使用率背景色
+export function getUsageBgColor(percentage: number): string {
+  if (percentage < 60) return 'bg-green-500/20';
+  if (percentage < 80) return 'bg-yellow-500/20';
+  return 'bg-red-500/20';
+}
