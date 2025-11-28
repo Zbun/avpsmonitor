@@ -8,6 +8,7 @@ const KV_PREFIX = 'vps:node:';
 const DEFAULTS = {
   monthlyTotal: 1099511627776, // 1TB
   resetDay: 1,
+  refreshInterval: 2000, // 前端刷新间隔（毫秒）
 };
 
 // Redis 客户端单例
@@ -186,14 +187,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 解析 JSON 数据
         const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
-        // 检查是否超时（60秒无更新视为离线）
-        const isOnline = (now - nodeData.lastUpdate) < 60000;
+        // 检查是否超时（15秒无更新视为离线，给3-4次上报容错）
+        const isOnline = (now - nodeData.lastUpdate) < 15000;
 
-        // 检查是否离线超过2分钟（120秒）
-        const offlineTimeout = 120000; // 2分钟
+        // 检查是否离线超过1分钟（60秒）
+        const offlineTimeout = 60000; // 1分钟
         const isOfflineTooLong = (now - nodeData.lastUpdate) >= offlineTimeout;
 
-        // 如果节点离线超过2分钟，暂时隐藏（上线后自动显示）
+        // 如果节点离线超过1分钟，暂时隐藏（上线后自动显示）
         if (isOfflineTooLong) {
           // 从预配置中移除已处理的节点，以便后续不生成占位节点
           preConfigured.delete(nodeId);
@@ -288,11 +289,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const allNodes = [...validNodes, ...remainingPreConfigured];
 
+    // 从环境变量获取刷新间隔配置
+    const refreshInterval = parseInt(process.env.REFRESH_INTERVAL || '', 10) || DEFAULTS.refreshInterval;
+
     return res.status(200).json({
       nodes: allNodes,
       timestamp: now,
       count: allNodes.length,
       kvAvailable: true,
+      refreshInterval,
     });
   } catch (error) {
     console.error('Error fetching nodes:', error);
@@ -303,12 +308,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generatePlaceholderNode(id, config)
     );
 
+    const refreshInterval = parseInt(process.env.REFRESH_INTERVAL || '', 10) || DEFAULTS.refreshInterval;
+
     return res.status(200).json({
       nodes: placeholderNodes,
       timestamp: Date.now(),
       count: placeholderNodes.length,
       error: 'KV connection failed',
       kvAvailable: false,
+      refreshInterval,
     });
   }
 }

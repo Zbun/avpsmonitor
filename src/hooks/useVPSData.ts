@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { VPSNode, LatencyTest, ISPLatency, getLatencyStatus } from '../types';
 import {
   generateDemoNodes,
@@ -6,21 +6,23 @@ import {
   updateLatencyTests
 } from '../data/mockData';
 
-// API 基础地址，默认使用相对路径（适配 Vercel 部署）
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// 默认刷新间隔（毫秒）
+const DEFAULT_REFRESH_INTERVAL = 2000;
 
-// 数据刷新间隔（毫秒），默认 2 秒
-const REFRESH_INTERVAL = parseInt(import.meta.env.VITE_REFRESH_INTERVAL || '2000', 10);
+// API 响应类型
+interface APIResponse {
+  nodes: VPSNode[];
+  refreshInterval?: number;
+}
 
 // 请求节流：防止并发请求
 let isFetching = false;
-let pendingFetch: Promise<VPSNode[]> | null = null;
+let pendingFetch: Promise<APIResponse> | null = null;
 
 // 测量到服务器的延迟
 async function measureLatency(url: string): Promise<number | null> {
   try {
     const start = performance.now();
-    // 使用 GET 请求（因为 Vercel Serverless 只允许 GET/POST）
     const response = await fetch(url, {
       method: 'GET',
       cache: 'no-cache',
@@ -36,15 +38,12 @@ async function measureLatency(url: string): Promise<number | null> {
 
 // 生成真实延迟测试数据
 async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> {
-  // 测量到 API 服务器的延迟（代表整体网络状况）
-  const apiLatency = await measureLatency(`${API_BASE_URL || window.location.origin}/api/nodes`);
+  const apiLatency = await measureLatency(`${window.location.origin}/api/nodes`);
 
   return nodes.map(node => {
-    // 根据 VPS 位置模拟三网延迟差异
-    // 基础延迟 = API 延迟 + 节点区域因子
     const baseLatency = apiLatency || 100;
     const regionFactors: Record<string, number> = {
-      'CN': 0.5,  // 国内节点延迟最低
+      'CN': 0.5,
       'HK': 0.7,
       'TW': 0.8,
       'JP': 0.9,
@@ -56,7 +55,6 @@ async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> 
     };
     const factor = regionFactors[node.countryCode] || 1.2;
 
-    // 为三大运营商生成略有差异的延迟
     const generateISPLatency = (ispMultiplier: number): ISPLatency => {
       if (node.status === 'offline') {
         return {
@@ -67,7 +65,6 @@ async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> 
           packetLoss: 100,
         };
       }
-      // 添加随机波动 ±20%
       const jitter = 0.8 + Math.random() * 0.4;
       const latency = Math.round(baseLatency * factor * ispMultiplier * jitter);
       return {
@@ -75,7 +72,7 @@ async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> 
         code: 'CT',
         latency,
         status: getLatencyStatus(latency),
-        packetLoss: Math.random() * 3, // 0-3% 丢包
+        packetLoss: Math.random() * 3,
       };
     };
 
@@ -105,8 +102,7 @@ interface UseVPSDataReturn {
 }
 
 // 从 API 获取数据（带请求去重和超时）
-async function fetchVPSData(): Promise<VPSNode[]> {
-  // 如果已有请求在进行，复用该请求
+async function fetchVPSData(): Promise<APIResponse> {
   if (isFetching && pendingFetch) {
     return pendingFetch;
   }
@@ -115,9 +111,9 @@ async function fetchVPSData(): Promise<VPSNode[]> {
   pendingFetch = (async () => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(`${API_BASE_URL}/api/nodes`, {
+      const response = await fetch('/api/nodes', {
         signal: controller.signal,
         cache: 'no-store',
       });
@@ -127,7 +123,10 @@ async function fetchVPSData(): Promise<VPSNode[]> {
         throw new Error('Failed to fetch VPS data');
       }
       const data = await response.json();
-      return data.nodes || [];
+      return {
+        nodes: data.nodes || [],
+        refreshInterval: data.refreshInterval,
+      };
     } finally {
       isFetching = false;
       pendingFetch = null;
@@ -144,27 +143,29 @@ export function useVPSData(): UseVPSDataReturn {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
-  // 标记是否使用 Demo 数据（API 失败时回退）
   const [usingDemo, setUsingDemo] = useState(false);
+  // 存储服务器返回的刷新间隔
+  const refreshIntervalRef = useRef<number>(DEFAULT_REFRESH_INTERVAL);
 
-  // 加载数据的函数
   const loadData = useCallback(async (isInitial = false) => {
     try {
-      // 默认使用真实 API
-      const data = await fetchVPSData();
+      const response = await fetchVPSData();
 
-      setNodes(data);
+      // 更新刷新间隔（如果服务器返回了新值）
+      if (response.refreshInterval && response.refreshInterval > 0) {
+        refreshIntervalRef.current = response.refreshInterval;
+      }
+
+      setNodes(response.nodes);
       setLastUpdate(Date.now());
       setUsingDemo(false);
 
-      // 如果是首次加载，同时生成延迟测试数据
       if (isInitial || latencyTests.length === 0) {
-        const tests = await performRealLatencyTest(data);
+        const tests = await performRealLatencyTest(response.nodes);
         setLatencyTests(tests);
       }
     } catch (error) {
       console.error('Failed to fetch VPS data:', error);
-      // API 请求失败时，回退到 Demo 数据
       if (nodes.length === 0) {
         const demoData = generateDemoNodes();
         setNodes(demoData);
@@ -185,33 +186,36 @@ export function useVPSData(): UseVPSDataReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 自动更新数据
+  // 自动更新数据（使用动态刷新间隔）
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadData(false);
-    }, REFRESH_INTERVAL);
+    let timeoutId: ReturnType<typeof setTimeout>;
 
-    return () => clearInterval(interval);
+    const scheduleNextFetch = () => {
+      timeoutId = setTimeout(async () => {
+        await loadData(false);
+        scheduleNextFetch();
+      }, refreshIntervalRef.current);
+    };
+
+    scheduleNextFetch();
+
+    return () => clearTimeout(timeoutId);
   }, [loadData]);
 
-  // 手动刷新
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     await loadData(false);
     setIsRefreshing(false);
   }, [loadData]);
 
-  // 运行延迟测试
   const runLatencyTest = useCallback(async () => {
     setIsTesting(true);
 
     try {
       if (!usingDemo && nodes.length > 0) {
-        // 真实 API 模式：执行真实延迟测试
         const tests = await performRealLatencyTest(nodes);
         setLatencyTests(tests);
       } else {
-        // Demo 模式：模拟测试延迟
         await new Promise(resolve => setTimeout(resolve, 2000));
         setLatencyTests(prev => updateLatencyTests(prev));
       }

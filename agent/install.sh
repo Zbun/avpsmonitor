@@ -168,8 +168,18 @@ function getIPv6() {
     for (const iface of interfaces[name]) {
       // 兼容新旧 Node.js: 旧版 family='IPv6', 新版 family=6
       const isIPv6 = iface.family === 'IPv6' || iface.family === 6;
-      if (isIPv6 && !iface.internal && !iface.address.startsWith('fe80:')) {
-        return iface.address;
+      if (isIPv6 && !iface.internal) {
+        const addr = iface.address.toLowerCase();
+        // 排除非公网地址: fe80 链路本地, fd/fc ULA, fec 废弃站点本地
+        if (addr.startsWith('fe80:') || addr.startsWith('fd') || 
+            addr.startsWith('fc') || addr.startsWith('fec') ||
+            addr.startsWith('::1') || addr.startsWith('2001:db8:')) {
+          continue;
+        }
+        // 全球单播地址通常以 2 或 3 开头 (2000::/3)
+        if (addr.startsWith('2') || addr.startsWith('3')) {
+          return iface.address;
+        }
       }
     }
   }

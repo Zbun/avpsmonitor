@@ -38,7 +38,7 @@ const CONFIG = {
   // 虚拟化类型
   protocol: process.env.PROTOCOL || 'KVM',
   // 上报间隔 (毫秒)
-  interval: parseInt(process.env.INTERVAL) || 5000,
+  interval: parseInt(process.env.INTERVAL) || 4000,
   // VPS 到期时间 (格式: YYYY-MM-DD，如 2025-12-31)
   expireDate: process.env.EXPIRE_DATE || '',
   // 流量重置日 (每月第几天重置，1-28)
@@ -280,19 +280,41 @@ function detectIPv6() {
 
   try {
     const interfaces = os.networkInterfaces();
+    const candidates = [];
+
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name]) {
-        // 检查 IPv6 地址（非内部、非链路本地）
         // 兼容新旧 Node.js 版本：旧版 family='IPv6'，新版 family=6
         const isIPv6 = iface.family === 'IPv6' || iface.family === 6;
         if (isIPv6 && !iface.internal) {
-          // 排除链路本地地址 (fe80::) 和回环地址 (::1)
-          if (!iface.address.startsWith('fe80:') && !iface.address.startsWith('::1')) {
-            cachedPublicIPv6 = iface.address;
-            return cachedPublicIPv6;
+          const addr = iface.address.toLowerCase();
+          // 排除以下非公网地址:
+          // - 链路本地地址: fe80::/10
+          // - 回环地址: ::1
+          // - ULA (Unique Local Address): fc00::/7 (包括 fd00::/8)
+          // - 文档地址: 2001:db8::/32
+          // - 废弃的站点本地地址: fec0::/10
+          if (addr.startsWith('fe80:') ||
+            addr.startsWith('::1') ||
+            addr.startsWith('fc') ||
+            addr.startsWith('fd') ||
+            addr.startsWith('fec') ||
+            addr.startsWith('2001:db8:')) {
+            continue;
+          }
+          // 全球单播地址通常以 2 或 3 开头
+          // 2000::/3 是全球单播地址范围
+          if (addr.startsWith('2') || addr.startsWith('3')) {
+            candidates.push(iface.address);
           }
         }
       }
+    }
+
+    // 优先返回找到的第一个全球单播地址
+    if (candidates.length > 0) {
+      cachedPublicIPv6 = candidates[0];
+      return cachedPublicIPv6;
     }
   } catch (e) {
     console.error('Error detecting IPv6:', e.message);

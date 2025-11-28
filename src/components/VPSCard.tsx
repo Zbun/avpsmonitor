@@ -361,8 +361,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                           parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' :
                             'text-red-600 dark:text-red-400'
                           }`}>{trafficPercent}%</span>
-                        <span className="text-[10px] text-slate-400 dark:text-gray-500">
-                          剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400">
+                          用{formatBytes(node.network.monthlyUsed)}/剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
                         </span>
                       </div>
                     </td>
@@ -429,9 +429,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             </div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">剩余流量</div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">月流量</div>
                             <div className="font-medium text-slate-700 dark:text-white">
-                              {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
+                              用{formatBytes(node.network.monthlyUsed)}/剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
                             </div>
                           </div>
                           <div>
@@ -528,8 +528,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   <div className="text-center min-w-[50px]">
                     <div className={`font-semibold ${parseFloat(trafficPercent) < 60 ? 'text-green-600 dark:text-green-400' :
                       parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
-                      }`}>{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}</div>
-                    <div className="text-[9px] text-slate-400">/{formatBytes(node.network.monthlyTotal)}</div>
+                      }`}>{formatBytes(node.network.monthlyUsed)}</div>
+                    <div className="text-[9px] text-slate-400">剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}</div>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
