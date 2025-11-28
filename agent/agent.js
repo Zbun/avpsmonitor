@@ -283,8 +283,10 @@ function detectIPv6() {
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name]) {
         // 检查 IPv6 地址（非内部、非链路本地）
-        if (iface.family === 'IPv6' && !iface.internal) {
-          // 排除链路本地地址 (fe80::)
+        // 兼容新旧 Node.js 版本：旧版 family='IPv6'，新版 family=6
+        const isIPv6 = iface.family === 'IPv6' || iface.family === 6;
+        if (isIPv6 && !iface.internal) {
+          // 排除链路本地地址 (fe80::) 和回环地址 (::1)
           if (!iface.address.startsWith('fe80:') && !iface.address.startsWith('::1')) {
             cachedPublicIPv6 = iface.address;
             return cachedPublicIPv6;
@@ -307,7 +309,9 @@ function getPublicIP() {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        // 兼容新旧 Node.js: 旧版 family='IPv4', 新版 family=4
+        const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
+        if (isIPv4 && !iface.internal) {
           if (!iface.address.startsWith('10.') &&
             !iface.address.startsWith('172.') &&
             !iface.address.startsWith('192.168.')) {
@@ -321,7 +325,8 @@ function getPublicIP() {
     // 返回第一个非内网 IPv4
     for (const name of Object.keys(interfaces)) {
       for (const iface of interfaces[name]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
+        if (isIPv4 && !iface.internal) {
           cachedPublicIP = iface.address;
           return cachedPublicIP;
         }

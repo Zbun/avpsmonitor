@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # VPS Monitor Agent 一键安装脚本
-# 使用方法: curl -fsSL https://xxx.vercel.app/install.sh | bash -s -- <SERVER_URL> <API_TOKEN> [NODE_ID] [EXPIRE_DATE] [TRAFFIC_RESET_DAY]
+# 使用方法: curl -fsSL https://xxx.vercel.app/install.sh | bash -s -- <SERVER_URL> <API_TOKEN> [NODE_ID]
 # 位置信息会根据 VPS IP 自动识别！
 
 set -e
@@ -9,9 +9,6 @@ set -e
 SERVER_URL="${1:-https://your-monitor.vercel.app}"
 API_TOKEN="${2:-your-secret-token}"
 NODE_ID="${3:-$(hostname)}"
-# 新增可配置项
-EXPIRE_DATE="${4:-}"       # VPS 到期时间，格式: YYYY-MM-DD
-TRAFFIC_RESET_DAY="${5:-1}" # 流量重置日，1-28
 
 INSTALL_DIR="/opt/vps-agent"
 SERVICE_NAME="vps-agent"
@@ -22,10 +19,32 @@ echo "=========================================="
 echo "Server URL: $SERVER_URL"
 echo "Node ID: $NODE_ID"
 echo "位置信息: 将根据 IP 自动识别"
-[ -n "$EXPIRE_DATE" ] && echo "到期时间: $EXPIRE_DATE"
-echo "流量重置日: 每月${TRAFFIC_RESET_DAY}号"
 echo "Install Dir: $INSTALL_DIR"
 echo "=========================================="
+
+# 检查并停止旧服务
+if systemctl is-active --quiet $SERVICE_NAME 2>/dev/null; then
+    echo "Stopping existing service..."
+    sudo systemctl stop $SERVICE_NAME
+fi
+
+if systemctl is-enabled --quiet $SERVICE_NAME 2>/dev/null; then
+    echo "Disabling existing service..."
+    sudo systemctl disable $SERVICE_NAME
+fi
+
+# 清理旧安装
+if [ -d "$INSTALL_DIR" ]; then
+    echo "Removing old installation..."
+    sudo rm -rf $INSTALL_DIR
+fi
+
+if [ -f "/etc/systemd/system/$SERVICE_NAME.service" ]; then
+    sudo rm -f /etc/systemd/system/$SERVICE_NAME.service
+    sudo systemctl daemon-reload
+fi
+
+echo "Clean install starting..."
 
 # 检查 Node.js
 if ! command -v node &> /dev/null; then
@@ -135,7 +154,9 @@ function getIP() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+      // 兼容新旧 Node.js: 旧版 family='IPv4', 新版 family=4
+      const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
+      if (isIPv4 && !iface.internal) return iface.address;
     }
   }
   return '-';
@@ -145,7 +166,9 @@ function getIPv6() {
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv6' && !iface.internal && !iface.address.startsWith('fe80:')) {
+      // 兼容新旧 Node.js: 旧版 family='IPv6', 新版 family=6
+      const isIPv6 = iface.family === 'IPv6' || iface.family === 6;
+      if (isIPv6 && !iface.internal && !iface.address.startsWith('fe80:')) {
         return iface.address;
       }
     }
@@ -269,11 +292,7 @@ SERVER_URL=$SERVER_URL
 API_TOKEN=$API_TOKEN
 NODE_ID=$NODE_ID
 INTERVAL=5000
-TRAFFIC_RESET_DAY=$TRAFFIC_RESET_DAY
 EOF
-
-# 如果指定了到期时间，也写入配置
-[ -n "$EXPIRE_DATE" ] && echo "EXPIRE_DATE=$EXPIRE_DATE" >> .env
 
 # 创建 systemd 服务
 sudo cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
