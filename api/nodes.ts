@@ -193,16 +193,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const offlineTimeout = 120000; // 2分钟
         const isOfflineTooLong = (now - nodeData.lastUpdate) >= offlineTimeout;
 
+        // 如果节点离线超过2分钟，暂时隐藏（上线后自动显示）
+        if (isOfflineTooLong) {
+          // 从预配置中移除已处理的节点，以便后续不生成占位节点
+          preConfigured.delete(nodeId);
+          return null;
+        }
+
         // 优先使用环境变量中的配置
         const preConfig = preConfigured.get(nodeId);
 
         // 从预配置中移除已处理的节点
         preConfigured.delete(nodeId);
-
-        // 如果节点离线超过2分钟且不在预配置列表中，则隐藏
-        if (isOfflineTooLong && !preConfig) {
-          return null;
-        }
 
         // 确保 network 对象有所有必需字段
         const network = nodeData.network || {};
