@@ -193,7 +193,7 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 
 **示例**：
 ```
-VPS_SERVERS=hk-01:香港 CN2 GIA:HK:Hong Kong:2025-12-31:1:1024,jp-01:东京 Lite:JP:Tokyo:2025-06-15:15:3TB,us-01:洛杉矶 9929:US:Los Angeles:2026-01-01:8:500GB
+VPS_SERVERS=hk-01:香港 CN2 GIA:HK:Hong Kong:2025-12-31:1:1t,jp-01:东京 Lite:JP:Tokyo:2025-06-15:15:3TB,us-01:洛杉矶 9929:US:Los Angeles:2026-01-01:8:500g
 ```
 
 **字段说明**：
@@ -205,7 +205,7 @@ VPS_SERVERS=hk-01:香港 CN2 GIA:HK:Hong Kong:2025-12-31:1:1024,jp-01:东京 Lit
 | 位置描述 | 位置信息 | `Hong Kong` | ❌ |
 | 到期日期 | VPS 到期时间，格式 YYYY-MM-DD | `2025-12-31` | ❌ |
 | 流量重置日 | 每月几号重置流量统计 (1-28) | `1` | ❌ (默认 1) |
-| 月流量总数 | 每月流量配额，支持 `3TB`、`500GB`、`1024` 写法，不区分大小写，无单位默认 GB | `3TB` | ❌ (默认 1024GB) |
+| 月流量总数 | 每月流量配额，支持 `1T`、`3TB`、`512G`、`500GB`、`1024` 写法，不区分大小写，无单位默认 GB | `1t` | ❌ (默认 1TB) |
 
 > 💡 **提示**：
 > - 如果不配置 `VPS_SERVERS`，系统会根据 VPS 的 IP 地址自动识别位置信息

@@ -48,15 +48,16 @@ interface ServerConfig {
   monthlyTotal: number; // 月流量总数（字节）
 }
 
-// 解析流量配置，支持 TB/GB 单位（不区分大小写），无单位默认 GB
+// 解析流量配置，支持 TB/GB/T/G 单位（不区分大小写），无单位默认 GB
 function parseTrafficSize(value: string | undefined): number {
   if (!value) return DEFAULTS.monthlyTotal;
-  const trimmed = value.trim().toUpperCase();
-  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(TB|GB)?$/i);
+  const trimmed = value.trim();
+  // 支持: 3TB, 3tb, 3T, 3t, 500GB, 500gb, 500G, 500g, 1024
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s*(TB?|GB?)?$/i);
   if (!match) return DEFAULTS.monthlyTotal;
   const num = parseFloat(match[1]);
-  const unit = match[2]?.toUpperCase() || 'GB';
-  if (unit === 'TB') {
+  const unit = (match[2] || 'G').toUpperCase();
+  if (unit.startsWith('T')) {
     return num * 1024 * 1024 * 1024 * 1024; // TB -> bytes
   }
   return num * 1024 * 1024 * 1024; // GB -> bytes
