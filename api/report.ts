@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Redis from 'ioredis';
 
 // 从环境变量获取 API Token
 const API_TOKEN = process.env.API_TOKEN || 'your-secret-token';
@@ -7,14 +8,28 @@ const API_TOKEN = process.env.API_TOKEN || 'your-secret-token';
 const KV_PREFIX = 'vps:node:';
 const GEO_CACHE_PREFIX = 'vps:geo:';
 
-// 动态获取 KV 连接
-async function getKV() {
+// Redis 客户端单例
+let redisClient: Redis | null = null;
+
+// 获取 Redis 连接
+function getRedis(): Redis | null {
+  if (redisClient) return redisClient;
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    console.warn('REDIS_URL not configured');
+    return null;
+  }
+
   try {
-    const { kv } = await import('@vercel/kv');
-    await kv.ping();
-    return kv;
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    });
+    return redisClient;
   } catch (e) {
-    console.warn('Vercel KV not available:', e);
+    console.error('Failed to create Redis client:', e);
     return null;
   }
 }
@@ -29,22 +44,22 @@ interface GeoInfo {
 }
 
 // 查询 IP 地理位置（使用免费的 ip-api.com）
-async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
+async function getGeoInfo(ip: string, redis: Redis | null): Promise<GeoInfo | null> {
   // 跳过内网 IP
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') {
     return null;
   }
 
-  // 如果 KV 可用，先检查缓存
-  if (kv) {
+  // 如果 Redis 可用，先检查缓存
+  if (redis) {
     try {
       const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
-      const cached = await kv.get(cacheKey);
+      const cached = await redis.get(cacheKey);
       if (cached) {
-        return cached as GeoInfo;
+        return (typeof cached === 'string' ? JSON.parse(cached) : cached) as GeoInfo;
       }
     } catch (e) {
-      console.warn('KV cache read failed:', e);
+      console.warn('Redis cache read failed:', e);
     }
   }
 
@@ -62,13 +77,13 @@ async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
         isp: data.isp || '',
       };
 
-      // 如果 KV 可用，缓存 24 小时
-      if (kv) {
+      // 如果 Redis 可用，缓存 24 小时
+      if (redis) {
         try {
           const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
-          await kv.set(cacheKey, geoInfo, { ex: 86400 });
+          await redis.setex(cacheKey, 86400, JSON.stringify(geoInfo));
         } catch (e) {
-          console.warn('KV cache write failed:', e);
+          console.warn('Redis cache write failed:', e);
         }
       }
 
@@ -102,13 +117,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // 获取 KV 连接
-  const kv = await getKV();
+  // 获取 Redis 连接
+  const redis = getRedis();
 
-  if (!kv) {
+  if (!redis) {
     return res.status(503).json({
       error: 'Storage not available',
-      message: 'Vercel KV is not configured. Please configure KV storage in Vercel dashboard.'
+      message: 'Redis is not configured. Please set REDIS_URL and REDIS_TOKEN environment variables.'
     });
   }
 
@@ -127,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 如果上报了 IP 且没有手动指定位置，则自动获取
     if (ipAddress && (!location || location === 'Unknown' || !countryCode)) {
-      geoInfo = await getGeoInfo(ipAddress, kv);
+      geoInfo = await getGeoInfo(ipAddress, redis);
 
       if (geoInfo) {
         // 自动填充位置信息
@@ -146,7 +161,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 存储节点数据到 Vercel KV，设置 60 秒过期（节点超时即自动清除）
+    // 存储节点数据到 Redis，设置 60 秒过期（节点超时即自动清除）
     const nodeData = {
       id: nodeId,
       ipAddress,
@@ -158,12 +173,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: 'online',
     };
 
-    await kv.set(`${KV_PREFIX}${nodeId}`, nodeData, { ex: 60 });
+    await redis.setex(`${KV_PREFIX}${nodeId}`, 60, JSON.stringify(nodeData));
 
     // 维护节点列表
-    const nodeList = await kv.smembers('vps:nodes') || [];
+    const nodeList = await redis.smembers('vps:nodes') || [];
     if (!nodeList.includes(nodeId)) {
-      await kv.sadd('vps:nodes', nodeId);
+      await redis.sadd('vps:nodes', nodeId);
     }
 
     return res.status(200).json({

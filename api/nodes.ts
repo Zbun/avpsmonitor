@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Redis from 'ioredis';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
@@ -9,15 +10,28 @@ const DEFAULTS = {
   resetDay: 1,
 };
 
-// 动态导入 KV（避免未配置时报错）
-async function getKV() {
+// Redis 客户端单例
+let redisClient: Redis | null = null;
+
+// 获取 Redis 连接
+function getRedis(): Redis | null {
+  if (redisClient) return redisClient;
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    console.warn('REDIS_URL not configured');
+    return null;
+  }
+
   try {
-    const { kv } = await import('@vercel/kv');
-    // 测试连接
-    await kv.ping();
-    return kv;
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    });
+    return redisClient;
   } catch (e) {
-    console.warn('Vercel KV not available:', e);
+    console.error('Failed to create Redis client:', e);
     return null;
   }
 }
@@ -96,11 +110,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const preConfigured = getPreConfiguredServers();
     const now = Date.now();
 
-    // 尝试获取 KV 连接
-    const kv = await getKV();
+    // 尝试获取 Redis 连接
+    const redis = getRedis();
 
-    // 如果 KV 不可用，返回预配置的离线节点
-    if (!kv) {
+    // 如果 Redis 不可用，返回预配置的离线节点
+    if (!redis) {
       const placeholderNodes = Array.from(preConfigured.entries()).map(([id, config]) =>
         generatePlaceholderNode(id, config)
       );
@@ -110,13 +124,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timestamp: now,
         count: placeholderNodes.length,
         kvAvailable: false,
+        message: 'Redis not configured. Set REDIS_URL and REDIS_TOKEN environment variables.',
       });
     }
 
     // 获取所有节点 ID
     let nodeIds: string[] = [];
     try {
-      nodeIds = await kv.smembers('vps:nodes') || [];
+      nodeIds = await redis.smembers('vps:nodes') || [];
     } catch (e) {
       console.warn('Error fetching node list:', e);
     }
@@ -125,15 +140,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const nodes = await Promise.all(
       nodeIds.map(async (nodeId: string) => {
         try {
-          const data = await kv.get(`${KV_PREFIX}${nodeId}`);
-          if (!data) {
+          const rawData = await redis.get(`${KV_PREFIX}${nodeId}`);
+          if (!rawData) {
             // 节点数据过期，从列表中移除
-            await kv.srem('vps:nodes', nodeId);
+            await redis.srem('vps:nodes', nodeId);
             return null;
           }
 
+          // 解析 JSON 数据
+          const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+
           // 检查是否超时（60秒无更新视为离线）
-          const nodeData = data as any;
           const isOnline = (now - nodeData.lastUpdate) < 60000;
 
           // 优先使用环境变量中的配置
