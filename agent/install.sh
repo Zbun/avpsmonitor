@@ -1,336 +1,196 @@
 #!/bin/bash
 
+# ============================================
 # VPS Monitor Agent 一键安装脚本
-# 使用方法: curl -fsSL https://xxx.vercel.app/install.sh | bash -s -- <SERVER_URL> <API_TOKEN> [NODE_ID]
-# 位置信息会根据 VPS IP 自动识别！
+# 
+# Shell 轻量版，内存占用 < 1MB，无需 Node.js
+# 
+# 使用方法:
+#   curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/install.sh | bash -s -- \
+#     https://your-app.vercel.app \
+#     your-api-token \
+#     node-id
+# ============================================
 
 set -e
 
-SERVER_URL="${1:-https://your-monitor.vercel.app}"
-API_TOKEN="${2:-your-secret-token}"
+# 颜色
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${GREEN}"
+echo "========================================"
+echo "  VPS Monitor Agent 安装脚本"
+echo "  (Shell 轻量版，内存 < 1MB)"
+echo "========================================"
+echo -e "${NC}"
+
+# 检查参数
+SERVER_URL="${1:-}"
+API_TOKEN="${2:-}"
 NODE_ID="${3:-$(hostname)}"
 
-INSTALL_DIR="/opt/vps-agent"
-SERVICE_NAME="vps-agent"
+if [ -z "$SERVER_URL" ] || [ -z "$API_TOKEN" ]; then
+    echo -e "${RED}错误: 缺少必需参数${NC}"
+    echo ""
+    echo "使用方法:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/install.sh | bash -s -- \\"
+    echo "    https://your-app.vercel.app \\"
+    echo "    your-api-token \\"
+    echo "    node-id"
+    echo ""
+    echo "参数说明:"
+    echo "  SERVER_URL  - Vercel 部署地址 (必需)"
+    echo "  API_TOKEN   - API 认证 Token (必需)"
+    echo "  NODE_ID     - 节点 ID (可选，默认使用主机名)"
+    echo ""
+    exit 1
+fi
 
-echo "=========================================="
-echo "VPS Monitor Agent Installer"
-echo "=========================================="
 echo "Server URL: $SERVER_URL"
 echo "Node ID: $NODE_ID"
 echo "位置信息: 将根据 IP 自动识别"
-echo "Install Dir: $INSTALL_DIR"
-echo "=========================================="
+echo ""
 
-# 检查并停止旧服务
+# 检查依赖
+echo -e "${YELLOW}[1/5] 检查依赖...${NC}"
+
+check_command() {
+    if ! command -v $1 &> /dev/null; then
+        echo -e "${RED}错误: 未找到 $1${NC}"
+        return 1
+    fi
+    return 0
+}
+
+missing_deps=0
+for cmd in curl awk grep; do
+    if ! check_command $cmd; then
+        missing_deps=1
+    fi
+done
+
+# bc 是可选的，没有的话尝试安装
+if ! command -v bc &> /dev/null; then
+    echo -e "${YELLOW}bc 未安装，尝试安装...${NC}"
+    if command -v apt-get &> /dev/null; then
+        apt-get update -qq && apt-get install -y -qq bc 2>/dev/null || true
+    elif command -v yum &> /dev/null; then
+        yum install -y -q bc 2>/dev/null || true
+    elif command -v apk &> /dev/null; then
+        apk add --quiet bc 2>/dev/null || true
+    fi
+fi
+
+if [ $missing_deps -eq 1 ]; then
+    echo -e "${RED}请先安装缺失的依赖${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}依赖检查通过${NC}"
+
+# 清理旧安装
+INSTALL_DIR="/opt/vps-agent"
+SERVICE_FILE="/etc/systemd/system/vps-agent.service"
+SERVICE_NAME="vps-agent"
+
+echo -e "${YELLOW}[2/5] 清理旧安装...${NC}"
+
 if systemctl is-active --quiet $SERVICE_NAME 2>/dev/null; then
-    echo "Stopping existing service..."
-    sudo systemctl stop $SERVICE_NAME
+    echo "停止旧服务..."
+    systemctl stop $SERVICE_NAME 2>/dev/null || true
 fi
 
 if systemctl is-enabled --quiet $SERVICE_NAME 2>/dev/null; then
-    echo "Disabling existing service..."
-    sudo systemctl disable $SERVICE_NAME
+    echo "禁用旧服务..."
+    systemctl disable $SERVICE_NAME 2>/dev/null || true
 fi
 
-# 清理旧安装
+if [ -f "$SERVICE_FILE" ]; then
+    rm -f "$SERVICE_FILE"
+fi
+
 if [ -d "$INSTALL_DIR" ]; then
-    echo "Removing old installation..."
-    sudo rm -rf $INSTALL_DIR
+    rm -rf "$INSTALL_DIR"
 fi
 
-if [ -f "/etc/systemd/system/$SERVICE_NAME.service" ]; then
-    sudo rm -f /etc/systemd/system/$SERVICE_NAME.service
-    sudo systemctl daemon-reload
-fi
-
-echo "Clean install starting..."
-
-# 检查 Node.js
-if ! command -v node &> /dev/null; then
-    echo "Installing Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-fi
-
-echo "Node.js version: $(node -v)"
+systemctl daemon-reload 2>/dev/null || true
+echo -e "${GREEN}旧安装已清理${NC}"
 
 # 创建安装目录
-sudo mkdir -p $INSTALL_DIR
-cd $INSTALL_DIR
+echo -e "${YELLOW}[3/5] 下载 Agent 脚本...${NC}"
+mkdir -p "$INSTALL_DIR"
 
-# 下载 agent 文件
-cat > agent.js << 'AGENT_EOF'
-#!/usr/bin/env node
-const os = require('os');
-const https = require('https');
-const http = require('http');
-const { execSync } = require('child_process');
-const fs = require('fs');
-
-const CONFIG = {
-  serverUrl: process.env.SERVER_URL || 'http://localhost:3001',
-  apiToken: process.env.API_TOKEN || 'your-secret-token',
-  nodeId: process.env.NODE_ID || 'node-1',
-  interval: parseInt(process.env.INTERVAL) || 5000,
-  expireDate: process.env.EXPIRE_DATE || '',
-  trafficResetDay: parseInt(process.env.TRAFFIC_RESET_DAY) || 1,
-};
-
-let lastNetworkStats = null;
-let lastNetworkTime = null;
-
-function getNetworkStats() {
-  try {
-    let rx = 0, tx = 0;
-    if (process.platform === 'linux' && fs.existsSync('/proc/net/dev')) {
-      const data = fs.readFileSync('/proc/net/dev', 'utf-8');
-      const lines = data.split('\n').slice(2);
-      for (const line of lines) {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length < 10) continue;
-        const iface = parts[0].replace(':', '');
-        if (iface === 'lo') continue;
-        rx += parseInt(parts[1]) || 0;
-        tx += parseInt(parts[9]) || 0;
-      }
-    }
-    return { rx, tx };
-  } catch (e) {
-    return { rx: 0, tx: 0 };
-  }
-}
-
-function calculateNetworkSpeed() {
-  const now = Date.now();
-  const stats = getNetworkStats();
-  let uploadSpeed = 0, downloadSpeed = 0;
-  
-  if (lastNetworkStats && lastNetworkTime) {
-    const timeDiff = (now - lastNetworkTime) / 1000;
-    if (timeDiff > 0) {
-      uploadSpeed = Math.max(0, (stats.tx - lastNetworkStats.tx) / timeDiff);
-      downloadSpeed = Math.max(0, (stats.rx - lastNetworkStats.rx) / timeDiff);
-    }
-  }
-  
-  lastNetworkStats = stats;
-  lastNetworkTime = now;
-  return { uploadSpeed, downloadSpeed, totalUpload: stats.tx, totalDownload: stats.rx };
-}
-
-function getDiskUsage() {
-  try {
-    const output = execSync("df -B1 / | tail -1").toString();
-    const parts = output.trim().split(/\s+/);
-    const total = parseInt(parts[1]) || 0;
-    const used = parseInt(parts[2]) || 0;
-    return { total, used, usage: total > 0 ? (used / total) * 100 : 0 };
-  } catch (e) {
-    return { total: 0, used: 0, usage: 0 };
-  }
-}
-
-async function getCpuUsage() {
-  return new Promise((resolve) => {
-    const cpus1 = os.cpus();
-    setTimeout(() => {
-      const cpus2 = os.cpus();
-      let totalIdle = 0, totalTick = 0;
-      for (let i = 0; i < cpus1.length; i++) {
-        const cpu1 = cpus1[i].times, cpu2 = cpus2[i].times;
-        const idle = cpu2.idle - cpu1.idle;
-        const total = (cpu2.user - cpu1.user) + (cpu2.nice - cpu1.nice) + 
-                     (cpu2.sys - cpu1.sys) + idle + (cpu2.irq - cpu1.irq);
-        totalIdle += idle;
-        totalTick += total;
-      }
-      resolve(totalTick > 0 ? ((totalTick - totalIdle) / totalTick) * 100 : 0);
-    }, 100);
-  });
-}
-
-function getIP() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      // 兼容新旧 Node.js: 旧版 family='IPv4', 新版 family=4
-      const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
-      if (isIPv4 && !iface.internal) return iface.address;
-    }
-  }
-  return '-';
-}
-
-function getIPv6() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      // 兼容新旧 Node.js: 旧版 family='IPv6', 新版 family=6
-      const isIPv6 = iface.family === 'IPv6' || iface.family === 6;
-      if (isIPv6 && !iface.internal) {
-        const addr = iface.address.toLowerCase();
-        // 排除非公网地址: fe80 链路本地, fd/fc ULA, fec 废弃站点本地
-        if (addr.startsWith('fe80:') || addr.startsWith('fd') || 
-            addr.startsWith('fc') || addr.startsWith('fec') ||
-            addr.startsWith('::1') || addr.startsWith('2001:db8:')) {
-          continue;
-        }
-        // 全球单播地址通常以 2 或 3 开头 (2000::/3)
-        if (addr.startsWith('2') || addr.startsWith('3')) {
-          return iface.address;
-        }
-      }
-    }
-  }
-  return '';
-}
-
-function getOSInfo() {
-  if (process.platform === 'linux') {
-    try {
-      if (fs.existsSync('/etc/os-release')) {
-        const content = fs.readFileSync('/etc/os-release', 'utf-8');
-        const lines = content.split('\n');
-        let prettyName = '';
-        let name = '';
-        let version = '';
-        for (const line of lines) {
-          if (line.startsWith('PRETTY_NAME=')) {
-            prettyName = line.split('=')[1].replace(/"/g, '').trim();
-          } else if (line.startsWith('NAME=')) {
-            name = line.split('=')[1].replace(/"/g, '').trim();
-          } else if (line.startsWith('VERSION_ID=')) {
-            version = line.split('=')[1].replace(/"/g, '').trim();
-          }
-        }
-        if (prettyName) return prettyName;
-        if (name) return version ? name + ' ' + version : name;
-      }
-    } catch (e) {}
-    return 'Linux ' + os.release();
-  }
-  return os.type() + ' ' + os.release();
-}
-
-async function getSystemInfo() {
-  const cpuUsage = await getCpuUsage();
-  const network = calculateNetworkSpeed();
-  const disk = getDiskUsage();
-  const cpus = os.cpus();
-  const totalMem = os.totalmem();
-  const usedMem = totalMem - os.freemem();
-  
-  return {
-    ipAddress: getIP(),
-    ipv6Address: getIPv6(),
-    os: getOSInfo(),
-    uptime: os.uptime(),
-    load: os.loadavg(),
-    status: 'online',
-    cpu: { model: cpus[0]?.model || 'Unknown', cores: cpus.length, usage: cpuUsage },
-    memory: { total: totalMem, used: usedMem, usage: (usedMem / totalMem) * 100 },
-    disk: disk,
-    network: {
-      currentUpload: network.uploadSpeed,
-      currentDownload: network.downloadSpeed,
-      totalUpload: network.totalUpload,
-      totalDownload: network.totalDownload,
-      monthlyUsed: network.totalDownload + network.totalUpload,
-    },
-  };
-}
-
-async function report() {
-  try {
-    const data = await getSystemInfo();
-    // 直接展开系统数据，不嵌套在 data 对象中
-    const reportData = { 
-      nodeId: CONFIG.nodeId, 
-      protocol: 'KVM', 
-      ...data,
-      trafficResetDay: CONFIG.trafficResetDay,
-    };
-    if (CONFIG.expireDate) {
-      reportData.expireDate = CONFIG.expireDate;
-    }
-    const payload = JSON.stringify(reportData);
-    const url = new URL(`${CONFIG.serverUrl}/api/report`);
-    const client = url.protocol === 'https:' ? https : http;
-    
-    const req = client.request({
-      hostname: url.hostname,
-      port: url.port || (url.protocol === 'https:' ? 443 : 80),
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'X-API-Token': CONFIG.apiToken,
-      },
-      rejectUnauthorized: false,
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          console.log(`[${new Date().toISOString()}] OK`);
-        } else {
-          console.error(`[${new Date().toISOString()}] Error: ${res.statusCode}`);
-        }
-      });
-    });
-    
-    req.on('error', (e) => console.error(`[${new Date().toISOString()}] ${e.message}`));
-    req.write(payload);
-    req.end();
-  } catch (e) {
-    console.error(`[${new Date().toISOString()}] ${e.message}`);
-  }
-}
-
-console.log('VPS Agent Starting...');
-console.log(`Server: ${CONFIG.serverUrl}, Node: ${CONFIG.nodeId}`);
-calculateNetworkSpeed();
-setTimeout(report, 1000);
-setInterval(report, CONFIG.interval);
-AGENT_EOF
+# 下载 Agent 脚本
+curl -fsSL "https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/agent.sh" -o "$INSTALL_DIR/agent.sh"
+chmod +x "$INSTALL_DIR/agent.sh"
+echo -e "${GREEN}下载完成${NC}"
 
 # 创建环境配置
-cat > .env << EOF
+echo -e "${YELLOW}[4/5] 创建配置文件...${NC}"
+cat > "$INSTALL_DIR/.env" << EOF
 SERVER_URL=$SERVER_URL
 API_TOKEN=$API_TOKEN
 NODE_ID=$NODE_ID
-INTERVAL=5000
+INTERVAL=4
+TRAFFIC_RESET_DAY=1
 EOF
+echo -e "${GREEN}配置文件已创建${NC}"
 
 # 创建 systemd 服务
-sudo cat > /etc/systemd/system/$SERVICE_NAME.service << EOF
+echo -e "${YELLOW}[5/5] 创建系统服务...${NC}"
+cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=VPS Monitor Agent
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=$INSTALL_DIR
 EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=/usr/bin/node $INSTALL_DIR/agent.js
+ExecStart=/bin/bash $INSTALL_DIR/agent.sh
 Restart=always
-RestartSec=10
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 # 启动服务
-sudo systemctl daemon-reload
-sudo systemctl enable $SERVICE_NAME
-sudo systemctl start $SERVICE_NAME
+systemctl daemon-reload
+systemctl enable vps-agent
+systemctl start vps-agent
 
-echo ""
-echo "=========================================="
-echo "Installation completed!"
-echo "=========================================="
-echo "Check status: sudo systemctl status $SERVICE_NAME"
-echo "View logs: sudo journalctl -u $SERVICE_NAME -f"
-echo "=========================================="
+# 检查状态
+sleep 2
+if systemctl is-active --quiet vps-agent; then
+    echo -e "${GREEN}"
+    echo "========================================"
+    echo "  ✓ 安装成功！"
+    echo "========================================"
+    echo -e "${NC}"
+    echo ""
+    echo "服务状态: $(systemctl is-active vps-agent)"
+    echo "内存占用: < 1MB"
+    echo ""
+    echo "常用命令:"
+    echo "  systemctl status vps-agent   # 查看状态"
+    echo "  journalctl -u vps-agent -f   # 查看日志"
+    echo "  systemctl restart vps-agent  # 重启服务"
+    echo ""
+    echo "卸载命令:"
+    echo "  systemctl stop vps-agent && systemctl disable vps-agent"
+    echo "  rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service"
+    echo ""
+else
+    echo -e "${RED}"
+    echo "========================================"
+    echo "  ✗ 服务启动失败"
+    echo "========================================"
+    echo -e "${NC}"
+    echo "请检查日志: journalctl -u vps-agent -n 50"
+    exit 1
+fi
