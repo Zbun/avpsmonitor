@@ -37,17 +37,16 @@ async function measureLatency(url: string): Promise<number | null> {
 }
 
 // 生成真实延迟测试数据（优先使用 Agent 上报的数据）
-async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> {
-  // 如果没有 Agent 数据，回退到前端估算
-  const apiLatency = await measureLatency(`${window.location.origin}/api/nodes`);
-
+function performRealLatencyTest(nodes: VPSNode[], apiLatency: number | null = null): LatencyTest[] {
   return nodes.map(node => {
-    // 优先使用 Agent 上报的延迟数据
-    if (node.latency && (node.latency.CT > 0 || node.latency.CU > 0 || node.latency.CM > 0)) {
+    // 优先使用 Agent 上报的延迟数据（检查是否存在 latency 对象且有有效数据）
+    // Agent 返回 -1 表示 ping 失败，>0 表示成功
+    if (node.latency && typeof node.latency === 'object' &&
+      (node.latency.CT !== undefined || node.latency.CU !== undefined || node.latency.CM !== undefined)) {
       const createISPFromAgent = (code: 'CT' | 'CU' | 'CM', name: string, latency: number): ISPLatency => ({
         name,
         code,
-        latency: latency > 0 ? latency : null,
+        latency: latency > 0 ? latency : null,  // -1 或 0 表示失败，显示为 null
         status: latency > 0 ? getLatencyStatus(latency) : 'offline',
         packetLoss: latency > 0 ? 0 : 100,
       });
@@ -55,9 +54,9 @@ async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> 
       return {
         nodeId: node.id,
         isps: [
-          createISPFromAgent('CT', '电信', node.latency.CT),
-          createISPFromAgent('CU', '联通', node.latency.CU),
-          createISPFromAgent('CM', '移动', node.latency.CM),
+          createISPFromAgent('CT', '电信', node.latency.CT ?? -1),
+          createISPFromAgent('CU', '联通', node.latency.CU ?? -1),
+          createISPFromAgent('CM', '移动', node.latency.CM ?? -1),
         ],
         lastTest: Date.now(),
       };
@@ -169,6 +168,8 @@ export function useVPSData(): UseVPSDataReturn {
   const [usingDemo, setUsingDemo] = useState(false);
   // 存储服务器返回的刷新间隔
   const refreshIntervalRef = useRef<number>(DEFAULT_REFRESH_INTERVAL);
+  // 用于避免死循环的 ref
+  const nodesRef = useRef<VPSNode[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -180,22 +181,25 @@ export function useVPSData(): UseVPSDataReturn {
       }
 
       setNodes(response.nodes);
+      nodesRef.current = response.nodes;
       setLastUpdate(Date.now());
       setUsingDemo(false);
 
-      // 每次刷新都更新延迟测试数据（使用 Agent 上报的真实数据或前端估算）
-      const tests = await performRealLatencyTest(response.nodes);
+      // 更新延迟测试数据（使用 Agent 上报的真实数据）
+      // 不再需要额外请求 API 来估算延迟，直接使用 Agent 数据
+      const tests = performRealLatencyTest(response.nodes);
       setLatencyTests(tests);
     } catch (error) {
       console.error('Failed to fetch VPS data:', error);
-      if (nodes.length === 0) {
+      if (nodesRef.current.length === 0) {
         const demoData = generateDemoNodes();
         setNodes(demoData);
+        nodesRef.current = demoData;
         setLatencyTests(generateLatencyTests(demoData));
         setUsingDemo(true);
       }
     }
-  }, [nodes]);
+  }, []); // 移除 nodes 依赖，避免死循环
 
   // 初始加载
   useEffect(() => {
@@ -235,7 +239,9 @@ export function useVPSData(): UseVPSDataReturn {
 
     try {
       if (!usingDemo && nodes.length > 0) {
-        const tests = await performRealLatencyTest(nodes);
+        // 手动测试时，测量 API 延迟用于估算没有 Agent 数据的节点
+        const apiLatency = await measureLatency(`${window.location.origin}/api/nodes`);
+        const tests = performRealLatencyTest(nodes, apiLatency);
         setLatencyTests(tests);
       } else {
         await new Promise(resolve => setTimeout(resolve, 2000));
