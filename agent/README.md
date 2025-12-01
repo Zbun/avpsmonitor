@@ -1,89 +1,83 @@
 # VPS Monitor Agent
 
-VPS 监控 Agent，运行在被监控的 VPS 上，定时上报系统状态到部署在 Vercel 上的监控站点。
+轻量级 VPS 监控代理程序，用于收集服务器状态并上报到监控中心。
 
-## 功能特性
+## 特性
 
-- 📊 收集 CPU、内存、磁盘使用率
-- 🌐 监控网络上传/下载速度
-- ⏱️ 系统运行时间和负载
-- 🔄 自动定时上报（默认 5 秒）
-- 🔐 Token 认证保护
-- 🚀 零依赖，纯 Node.js 实现
+- 🚀 **零依赖**，纯 Shell 实现（仅需 bash + curl）
+- 📊 实时监控 CPU、内存、磁盘、网络
+- 🌐 自动检测公网 IP（支持 IPv4/IPv6）
+- 🔒 Token 认证，安全可靠
+- ⚡ 极低资源占用（内存 < 1MB）
 - 🌍 **自动识别 IP 位置**（国家、城市、ISP）
+
+## 系统要求
+
+- Linux 系统（支持 Ubuntu/Debian/CentOS/Alpine 等）
+- 基础命令：`bash`、`curl`、`awk`、`grep`
+
+> 💡 这些命令在绑大多数 Linux 发行版中都已预装
 
 ## 一键安装
 
-在需要监控的 VPS 上执行（只需 3 个参数！）：
+在需要监控的 VPS 上执行：
 
 ```bash
-curl -fsSL https://your-monitor.vercel.app/install.sh | bash -s -- \
-  https://your-monitor.vercel.app \
-  your-api-token \
-  node-1
+curl -fsSL https://your-monitor.vercel.app/agent/install.sh | bash -s -- \
+  --server "https://your-monitor.vercel.app" \
+  --token "your-api-token" \
+  --id "node-1"
 ```
 
 **位置信息会根据 VPS 的 IP 地址自动识别！** 无需手动配置国家、城市等信息。
 
 参数说明：
-1. `SERVER_URL` - 你的监控站点地址（部署在 Vercel 上）
-2. `API_TOKEN` - API 认证 Token（需与 Vercel 环境变量一致）
-3. `NODE_ID` - 节点唯一标识（可选，默认使用主机名）
+- `--server` - 你的监控站点地址（部署在 Vercel 上）
+- `--token` - API 认证 Token（需与 Vercel 环境变量一致）
+- `--id` - 节点唯一标识（可选，默认使用主机名）
 
-如果需要手动指定位置（覆盖自动识别），可以添加更多参数：
+如果需要手动指定位置（覆盖自动识别）：
 ```bash
-curl -fsSL https://xxx/install.sh | bash -s -- \
-  https://your-monitor.vercel.app \
-  your-api-token \
-  node-1 \
-  "香港CN2" \
-  HK \
-  "Hong Kong"
+curl -fsSL https://your-monitor.vercel.app/agent/install.sh | bash -s -- \
+  --server "https://your-monitor.vercel.app" \
+  --token "your-api-token" \
+  --id "node-1" \
+  --name "香港CN2" \
+  --country "HK" \
+  --location "Hong Kong"
 ```
 
 ## 手动安装
 
-### 1. 安装 Node.js
-
-```bash
-# Ubuntu/Debian
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# CentOS/RHEL
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-sudo yum install -y nodejs
-```
-
-### 2. 下载 Agent
+### 1. 下载 Agent
 
 ```bash
 sudo mkdir -p /opt/vps-agent
 cd /opt/vps-agent
+sudo curl -fsSL -o agent.sh https://your-monitor.vercel.app/agent/agent.sh
+sudo chmod +x agent.sh
 ```
 
-将 `agent.js` 文件复制到此目录。
-
-### 3. 配置环境变量
+### 2. 配置环境变量
 
 创建 `.env` 文件：
 
 ```bash
-cat > .env << EOF
+sudo tee /opt/vps-agent/.env > /dev/null << EOF
 SERVER_URL=https://your-monitor.vercel.app
 API_TOKEN=your-secret-token
 NODE_ID=node-1
-NODE_NAME=香港CN2
-COUNTRY_CODE=HK
-LOCATION=Hong Kong
-INTERVAL=5000
+# NODE_NAME=香港CN2
+# COUNTRY_CODE=HK
+# LOCATION=Hong Kong
+# INTERVAL=4
 EOF
 ```
 
-### 4. 创建系统服务
+### 3. 创建系统服务
 
 ```bash
-sudo cat > /etc/systemd/system/vps-agent.service << EOF
+sudo tee /etc/systemd/system/vps-agent.service > /dev/null << 'EOF'
 [Unit]
 Description=VPS Monitor Agent
 After=network.target
@@ -92,7 +86,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/vps-agent
 EnvironmentFile=/opt/vps-agent/.env
-ExecStart=/usr/bin/node /opt/vps-agent/agent.js
+ExecStart=/opt/vps-agent/agent.sh
 Restart=always
 RestartSec=10
 
@@ -101,7 +95,7 @@ WantedBy=multi-user.target
 EOF
 ```
 
-### 5. 启动服务
+### 4. 启动服务
 
 ```bash
 sudo systemctl daemon-reload
@@ -119,7 +113,7 @@ sudo systemctl start vps-agent
 | NODE_NAME | 节点显示名称 | 自动识别 | 可选 |
 | COUNTRY_CODE | 国家代码（显示国旗） | 自动识别 | 可选 |
 | LOCATION | 位置描述 | 自动识别 | 可选 |
-| INTERVAL | 上报间隔（毫秒） | 5000 | 可选 |
+| INTERVAL | 上报间隔（秒） | 4 | 可选 |
 
 > 💡 位置相关的配置（NODE_NAME、COUNTRY_CODE、LOCATION）留空时，服务端会根据 VPS 的公网 IP 自动识别！
 
@@ -156,17 +150,19 @@ sudo systemctl daemon-reload
 
 Agent 会收集并上报以下信息：
 
-- **CPU**: 使用率、核心数、型号
-- **内存**: 总量、已用、使用率
-- **磁盘**: 总量、已用、使用率
-- **网络**: 实时上传/下载速度、总流量
-- **系统**: 运行时间、负载、操作系统信息、IP 地址
+| 类别 | 数据项 |
+|------|--------|
+| **CPU** | 使用率、核心数、型号 |
+| **内存** | 总量、已用、使用率 |
+| **磁盘** | 总量、已用、使用率 |
+| **网络** | 实时上传/下载速度、总流量 |
+| **系统** | 运行时间、负载、操作系统、IP 地址 |
 
 ## 故障排查
 
 ### Agent 无法启动
 
-1. 检查 Node.js 是否安装：`node -v`
+1. 检查脚本是否有执行权限：`ls -la /opt/vps-agent/agent.sh`
 2. 检查配置文件是否存在：`cat /opt/vps-agent/.env`
 3. 查看错误日志：`sudo journalctl -u vps-agent -n 50`
 
@@ -178,7 +174,7 @@ Agent 会收集并上报以下信息：
 
 ### 网络速度显示为 0
 
-这是正常的，Agent 启动后需要等待一个上报周期（默认 5 秒）才能计算出网络速度。
+这是正常的，Agent 启动后需要等待一个上报周期（默认 4 秒）才能计算出网络速度。
 
 ## License
 

@@ -196,74 +196,7 @@ get_ipv6() {
     fi
 }
 
-# 三网延迟测试目标（使用各运营商 DNS 服务器）
-# 电信: 114.114.114.114 (114DNS) 或 202.96.128.86 (广东电信)
-# 联通: 123.125.81.6 (北京联通) 或 221.5.88.88 (山东联通)  
-# 移动: 211.136.192.6 (北京移动) 或 183.232.231.172 (广东移动)
-CT_TEST_IP="114.114.114.114"
-CU_TEST_IP="123.125.81.6"
-CM_TEST_IP="211.136.192.6"
-
-# Ping 测试（返回延迟毫秒数，失败返回 -1）
-ping_test() {
-    local ip=$1
-    local count=${2:-3}
-    
-    # 使用 ping 命令测试，取平均值
-    # Linux 输出格式: rtt min/avg/max/mdev = 10.123/15.456/20.789/3.456 ms
-    local output=$(ping -c $count -W 2 $ip 2>/dev/null)
-    
-    if [ $? -ne 0 ]; then
-        echo "-1"
-        return
-    fi
-    
-    # 尝试多种解析方式
-    local result=""
-    
-    # 方式1: 从 rtt/round-trip 行解析 avg 值
-    result=$(echo "$output" | grep -E 'rtt|round-trip' | awk -F'/' '{print $5}')
-    
-    # 方式2: 如果上面失败，尝试从 time= 中取值
-    if [ -z "$result" ] || [ "$result" = "0" ]; then
-        result=$(echo "$output" | grep -oE 'time=[0-9.]+' | tail -1 | cut -d= -f2)
-    fi
-    
-    if [ -n "$result" ] && [ "$result" != "0" ]; then
-        # 四舍五入到整数（兼容没有 printf 的系统）
-        echo "$result" | awk '{printf "%.0f", $1}' 2>/dev/null || echo "${result%.*}"
-    else
-        echo "-1"
-    fi
-}
-
-# 获取三网延迟（返回 JSON 格式）
-get_latency_test() {
-    local ct_latency=$(ping_test $CT_TEST_IP)
-    local cu_latency=$(ping_test $CU_TEST_IP)
-    local cm_latency=$(ping_test $CM_TEST_IP)
-    
-    # 构建 JSON
-    echo "{\"CT\": $ct_latency, \"CU\": $cu_latency, \"CM\": $cm_latency}"
-}
-
 # ===== 主逻辑 =====
-
-# 延迟测试缓存（每分钟更新一次，避免频繁 ping）
-LATENCY_CACHE=""
-LATENCY_CACHE_TIME=0
-
-# 获取延迟数据（带缓存）
-get_cached_latency() {
-    local now=$(date +%s)
-    local cache_ttl=60  # 60秒缓存
-    
-    if [ -z "$LATENCY_CACHE" ] || [ $((now - LATENCY_CACHE_TIME)) -gt $cache_ttl ]; then
-        LATENCY_CACHE=$(get_latency_test)
-        LATENCY_CACHE_TIME=$now
-    fi
-    echo "$LATENCY_CACHE"
-}
 
 # 构建 JSON 数据
 build_json() {
@@ -278,7 +211,6 @@ build_json() {
     local os_info=$(get_os_info)
     local ipv4=$(get_ipv4)
     local ipv6=$(get_ipv6)
-    local latency=$(get_cached_latency)
     
     # 计算月流量（简化：使用总流量）
     local monthly_used=$((${net[2]} + ${net[3]}))
@@ -315,8 +247,7 @@ build_json() {
     "totalDownload": ${net[2]},
     "totalUpload": ${net[3]},
     "monthlyUsed": $monthly_used
-  },
-  "latency": $latency
+  }
 }
 EOF
 }

@@ -551,10 +551,10 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   {/* 详细信息网格 */}
                   <div className="grid grid-cols-4 gap-2 text-[11px]">
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">硬盘</div>
-                      <div className={`font-medium ${node.disk.usage < 60 ? 'text-green-600 dark:text-green-400' :
-                        node.disk.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
-                        }`}>{node.disk.usage.toFixed(0)}%</div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">CPU</div>
+                      <div className="font-medium text-slate-700 dark:text-white">
+                        {node.cpu.cores}核
+                      </div>
                     </div>
                     <div>
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">运行</div>
