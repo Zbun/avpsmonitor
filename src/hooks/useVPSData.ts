@@ -170,7 +170,7 @@ export function useVPSData(): UseVPSDataReturn {
   // 存储服务器返回的刷新间隔
   const refreshIntervalRef = useRef<number>(DEFAULT_REFRESH_INTERVAL);
 
-  const loadData = useCallback(async (isInitial = false) => {
+  const loadData = useCallback(async () => {
     try {
       const response = await fetchVPSData();
 
@@ -183,10 +183,9 @@ export function useVPSData(): UseVPSDataReturn {
       setLastUpdate(Date.now());
       setUsingDemo(false);
 
-      if (isInitial || latencyTests.length === 0) {
-        const tests = await performRealLatencyTest(response.nodes);
-        setLatencyTests(tests);
-      }
+      // 每次刷新都更新延迟测试数据（使用 Agent 上报的真实数据或前端估算）
+      const tests = await performRealLatencyTest(response.nodes);
+      setLatencyTests(tests);
     } catch (error) {
       console.error('Failed to fetch VPS data:', error);
       if (nodes.length === 0) {
@@ -196,13 +195,13 @@ export function useVPSData(): UseVPSDataReturn {
         setUsingDemo(true);
       }
     }
-  }, [nodes, latencyTests.length]);
+  }, [nodes]);
 
   // 初始加载
   useEffect(() => {
     const initLoad = async () => {
       setIsLoading(true);
-      await loadData(true);
+      await loadData();
       setIsLoading(false);
     };
     initLoad();
@@ -215,7 +214,7 @@ export function useVPSData(): UseVPSDataReturn {
 
     const scheduleNextFetch = () => {
       timeoutId = setTimeout(async () => {
-        await loadData(false);
+        await loadData();
         scheduleNextFetch();
       }, refreshIntervalRef.current);
     };
@@ -227,7 +226,7 @@ export function useVPSData(): UseVPSDataReturn {
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
-    await loadData(false);
+    await loadData();
     setIsRefreshing(false);
   }, [loadData]);
 

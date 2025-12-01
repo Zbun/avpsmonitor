@@ -587,16 +587,16 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总↑↓</div>
-                      <div className="font-medium whitespace-nowrap text-[10px]">
-                        <span className="text-green-600 dark:text-green-400">{formatBytes(node.network.totalUpload)}</span>
-                        <span className="text-slate-400 mx-0.5">/</span>
-                        <span className="text-blue-600 dark:text-blue-400">{formatBytes(node.network.totalDownload)}</span>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总上传</div>
+                      <div className="font-medium text-green-600 dark:text-green-400 text-[10px]">
+                        {formatBytes(node.network.totalUpload)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">协议</div>
-                      <div className="font-medium text-slate-700 dark:text-white">{node.protocol}</div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总下载</div>
+                      <div className="font-medium text-blue-600 dark:text-blue-400 text-[10px]">
+                        {formatBytes(node.network.totalDownload)}
+                      </div>
                     </div>
                   </div>
 

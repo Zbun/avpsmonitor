@@ -67,6 +67,8 @@ function generateDemoNode(config: typeof demoNodesConfig[0], index: number): VPS
       currentDownload: isOffline ? 0 : rand(0, 20) * 1024 * 1024, // 0-20 MB/s
       resetDay: [1, 15, 8, 20][index],
     },
+    // Demo 模式不提供 latency 数据，使用前端估算
+    latency: null,
     lastUpdate: Date.now(),
   };
 }
