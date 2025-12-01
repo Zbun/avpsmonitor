@@ -160,23 +160,19 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
         {/* 网络流量 */}
         <div className="bg-slate-100 dark:bg-slate-900/50 rounded-lg p-2.5 mb-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-1">
+            <span className="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-1 whitespace-nowrap">
               <Wifi className="w-3 h-3" />
-              实时速度
+              速度
             </span>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <ArrowDown className="w-3 h-3 text-blue-500 dark:text-blue-400" />
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                  {formatSpeed(node.network.currentDownload)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <ArrowUp className="w-3 h-3 text-green-500 dark:text-green-400" />
-                <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                  {formatSpeed(node.network.currentUpload)}
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+                <ArrowDown className="w-3 h-3" />
+                {formatSpeed(node.network.currentDownload)}
+              </span>
+              <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400 font-medium whitespace-nowrap">
+                <ArrowUp className="w-3 h-3" />
+                {formatSpeed(node.network.currentUpload)}
+              </span>
             </div>
           </div>
 
