@@ -31,12 +31,26 @@ LAST_RX=0
 LAST_TX=0
 LAST_TIME_MS=0
 
+# 缓存的网卡名称和时间戳函数类型
+CACHED_INTERFACE=""
+USE_MS_TIMESTAMP=0
+
 # ===== 工具函数 =====
 
-# 获取毫秒级时间戳
-get_time_ms() {
-    # 优先使用 date +%s%3N (Linux)
+# 初始化时间戳精度检测
+init_timestamp() {
     if date +%s%3N >/dev/null 2>&1; then
+        # 验证输出是否真的是毫秒级（13位数字）
+        local ts=$(date +%s%3N)
+        if [ ${#ts} -ge 13 ]; then
+            USE_MS_TIMESTAMP=1
+        fi
+    fi
+}
+
+# 获取毫秒级时间戳（使用缓存的检测结果）
+get_time_ms() {
+    if [ $USE_MS_TIMESTAMP -eq 1 ]; then
         date +%s%3N
     else
         # 降级到秒级并乘以 1000
@@ -44,15 +58,19 @@ get_time_ms() {
     fi
 }
 
-# 获取主网卡名称
-get_main_interface() {
+# 初始化网卡检测
+init_interface() {
     # 优先获取默认路由的网卡
-    local iface=$(ip route 2>/dev/null | grep default | awk '{print $5}' | head -1)
-    if [ -z "$iface" ]; then
+    CACHED_INTERFACE=$(ip route 2>/dev/null | grep default | awk '{print $5}' | head -1)
+    if [ -z "$CACHED_INTERFACE" ]; then
         # 备选：获取第一个非 lo 网卡
-        iface=$(ls /sys/class/net | grep -v lo | head -1)
+        CACHED_INTERFACE=$(ls /sys/class/net | grep -v lo | head -1)
     fi
-    echo "$iface"
+}
+
+# 获取主网卡名称（使用缓存）
+get_main_interface() {
+    echo "$CACHED_INTERFACE"
 }
 
 # 获取 CPU 使用率
@@ -100,14 +118,13 @@ get_disk_info() {
 
 # 获取网络流量 (返回: rx tx)
 get_network_bytes() {
-    local iface=$(get_main_interface)
-    if [ -z "$iface" ]; then
+    if [ -z "$CACHED_INTERFACE" ]; then
         echo "0 0"
         return
     fi
     
-    local rx=$(cat /sys/class/net/$iface/statistics/rx_bytes 2>/dev/null || echo 0)
-    local tx=$(cat /sys/class/net/$iface/statistics/tx_bytes 2>/dev/null || echo 0)
+    local rx=$(cat /sys/class/net/$CACHED_INTERFACE/statistics/rx_bytes 2>/dev/null || echo 0)
+    local tx=$(cat /sys/class/net/$CACHED_INTERFACE/statistics/tx_bytes 2>/dev/null || echo 0)
     echo "$rx $tx"
 }
 
@@ -276,7 +293,14 @@ main() {
     echo "Node ID: $NODE_ID"
     echo "Interval: ${INTERVAL}s"
     echo "Traffic Reset Day: $TRAFFIC_RESET_DAY"
+    
+    # 初始化检测
+    init_timestamp
+    init_interface
+    
     echo "OS: $(get_os_info)"
+    echo "Interface: $CACHED_INTERFACE"
+    echo "MS Timestamp: $([ $USE_MS_TIMESTAMP -eq 1 ] && echo 'Yes' || echo 'No (fallback to seconds)')"
     echo "IPv4: $(get_ipv4)"
     echo "IPv6: $(get_ipv6 || echo 'Not detected')"
     echo "========================================"
@@ -298,7 +322,8 @@ main() {
     # 初始化网络统计（需要两次采样才能计算速度）
     echo "Initializing network statistics..."
     calculate_network_speed >/dev/null
-    sleep 2  # 等待 2 秒以获取更准确的初始速度
+    sleep 1  # 等待 1 秒
+    calculate_network_speed >/dev/null  # 第二次采样建立基准
     
     while true; do
         if send_report; then
@@ -306,7 +331,17 @@ main() {
         else
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] Report failed"
         fi
-        sleep $INTERVAL
+        
+        # 分段 sleep，中间进行网络采样以提高速度计算准确性
+        # 将 INTERVAL 分成两半，中间做一次采样
+        local half_interval=$((INTERVAL / 2))
+        if [ $half_interval -gt 0 ]; then
+            sleep $half_interval
+            calculate_network_speed >/dev/null  # 中间采样
+            sleep $((INTERVAL - half_interval))
+        else
+            sleep $INTERVAL
+        fi
     done
 }
 
