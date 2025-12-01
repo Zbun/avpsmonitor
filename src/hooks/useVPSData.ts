@@ -39,10 +39,13 @@ async function measureLatency(url: string): Promise<number | null> {
 // 生成真实延迟测试数据（优先使用 Agent 上报的数据）
 function performRealLatencyTest(nodes: VPSNode[], apiLatency: number | null = null): LatencyTest[] {
   return nodes.map(node => {
-    // 优先使用 Agent 上报的延迟数据（检查是否存在 latency 对象且有有效数据）
-    // Agent 返回 -1 表示 ping 失败，>0 表示成功
-    if (node.latency && typeof node.latency === 'object' &&
-      (node.latency.CT !== undefined || node.latency.CU !== undefined || node.latency.CM !== undefined)) {
+    // 优先使用 Agent 上报的延迟数据
+    // 只有当至少有一个有效延迟值（>0）时才使用 Agent 数据
+    // 如果三网都是 -1（ping 失败），则回退到前端估算
+    const hasValidLatency = node.latency && typeof node.latency === 'object' &&
+      (node.latency.CT > 0 || node.latency.CU > 0 || node.latency.CM > 0);
+
+    if (hasValidLatency && node.latency) {
       const createISPFromAgent = (code: 'CT' | 'CU' | 'CM', name: string, latency: number): ISPLatency => ({
         name,
         code,

@@ -210,11 +210,28 @@ ping_test() {
     local count=${2:-3}
     
     # 使用 ping 命令测试，取平均值
-    local result=$(ping -c $count -W 2 $ip 2>/dev/null | tail -1 | awk -F'/' '{print $5}')
+    # Linux 输出格式: rtt min/avg/max/mdev = 10.123/15.456/20.789/3.456 ms
+    local output=$(ping -c $count -W 2 $ip 2>/dev/null)
+    
+    if [ $? -ne 0 ]; then
+        echo "-1"
+        return
+    fi
+    
+    # 尝试多种解析方式
+    local result=""
+    
+    # 方式1: 从 rtt/round-trip 行解析 avg 值
+    result=$(echo "$output" | grep -E 'rtt|round-trip' | awk -F'/' '{print $5}')
+    
+    # 方式2: 如果上面失败，尝试从 time= 中取值
+    if [ -z "$result" ] || [ "$result" = "0" ]; then
+        result=$(echo "$output" | grep -oE 'time=[0-9.]+' | tail -1 | cut -d= -f2)
+    fi
     
     if [ -n "$result" ] && [ "$result" != "0" ]; then
-        # 四舍五入到整数
-        printf "%.0f" "$result" 2>/dev/null || echo "-1"
+        # 四舍五入到整数（兼容没有 printf 的系统）
+        echo "$result" | awk '{printf "%.0f", $1}' 2>/dev/null || echo "${result%.*}"
     else
         echo "-1"
     fi
