@@ -273,6 +273,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                 <span className="text-red-500">联</span>/
                 <span className="text-green-500">移</span>
               </th>
+              <th className="px-2 py-2 w-8"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -383,12 +384,17 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         <span className="text-slate-400 text-xs">-</span>
                       )}
                     </td>
+
+                    {/* 展开图标 */}
+                    <td className="px-2 py-2 text-center">
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </td>
                   </tr>
 
                   {/* 展开详情 */}
                   {isExpanded && (
                     <tr className="bg-slate-50 dark:bg-slate-900/30">
-                      <td colSpan={9} className="px-3 py-3">
+                      <td colSpan={10} className="px-3 py-3">
                         <div className="grid grid-cols-4 gap-x-4 gap-y-2 text-xs">
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">操作系统</div>
@@ -493,29 +499,33 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                 onClick={() => toggleExpand(node.id)}
                 className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-700/30 ${isExpanded ? 'bg-blue-100/50 dark:bg-blue-900/20' : ''}`}
               >
-                {/* 左侧: 国旗+名称 */}
+                {/* 左侧: 国旗+名称+位置 */}
                 <span className="flag-emoji text-base">{flag}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="font-medium text-sm text-slate-800 dark:text-white truncate">{node.name}</span>
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColor}`} />
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-gray-400">
-                    <span className="truncate max-w-[80px]">{node.location}</span>
-                    <span className="text-blue-500 whitespace-nowrap">↓{formatSpeed(node.network.currentDownload)}</span>
-                    <span className="text-green-500 whitespace-nowrap">↑{formatSpeed(node.network.currentUpload)}</span>
+                  <div className="text-[11px] text-slate-500 dark:text-gray-400 truncate">
+                    {node.location}
                   </div>
                 </div>
 
                 {/* 右侧: 核心指标 */}
-                <div className="flex items-center gap-2 text-[11px] flex-shrink-0">
-                  <div className="text-center">
+                <div className="flex items-center gap-1.5 text-[11px] flex-shrink-0">
+                  {/* 网速 */}
+                  <div className="text-right min-w-[52px]">
+                    <div className="text-blue-500 font-medium">↓{formatSpeed(node.network.currentDownload)}</div>
+                    <div className="text-green-500 font-medium">↑{formatSpeed(node.network.currentUpload)}</div>
+                  </div>
+                  <div className="w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
+                  <div className="text-center w-8">
                     <div className={`font-semibold ${node.cpu.usage < 60 ? 'text-green-600 dark:text-green-400' :
                       node.cpu.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                       }`}>{node.cpu.usage.toFixed(0)}%</div>
                     <div className="text-[9px] text-slate-400">CPU</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center w-8">
                     <div className={`font-semibold ${node.memory.usage < 60 ? 'text-green-600 dark:text-green-400' :
                       node.memory.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
                       }`}>{node.memory.usage.toFixed(0)}%</div>
