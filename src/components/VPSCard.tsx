@@ -537,10 +537,10 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
               {/* 展开详情 */}
               {isExpanded && (
-                <div className="mx-2 px-3 py-2 bg-blue-50/80 dark:bg-blue-950/30 rounded-lg">
+                <div className="mx-2 px-2 py-1.5 bg-blue-50/80 dark:bg-blue-950/30 rounded-lg">
                   {/* 延迟信息 */}
                   {latencyTest && (
-                    <div className="flex items-center justify-center gap-3 mb-2 py-1.5 bg-white dark:bg-slate-800/50 rounded text-xs">
+                    <div className="flex items-center justify-center gap-3 mb-1.5 py-1 text-xs">
                       <span className="text-slate-400">延迟:</span>
                       <span><span className="text-blue-500">电信</span> <span className={getLatencyColor(latencyTest.isps.find(i => i.code === 'CT')?.status || 'offline')}>{latencyTest.isps.find(i => i.code === 'CT')?.latency ?? '-'}ms</span></span>
                       <span><span className="text-red-500">联通</span> <span className={getLatencyColor(latencyTest.isps.find(i => i.code === 'CU')?.status || 'offline')}>{latencyTest.isps.find(i => i.code === 'CU')?.latency ?? '-'}ms</span></span>
@@ -549,7 +549,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   )}
 
                   {/* 详细信息网格 */}
-                  <div className="grid grid-cols-4 gap-2 text-[11px]">
+                  <div className="grid grid-cols-4 gap-1.5 text-[11px]">
                     <div>
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">CPU</div>
                       <div className="font-medium text-slate-700 dark:text-white">
