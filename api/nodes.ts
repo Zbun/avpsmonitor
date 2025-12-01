@@ -272,6 +272,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             monthlyTotal: preConfig?.monthlyTotal || network.monthlyTotal || DEFAULTS.monthlyTotal,
             resetDay: resetDay,
           },
+          // 延迟测试数据（Agent 上报）
+          latency: nodeData.latency || null,
         };
       } catch (e) {
         console.error(`Error processing node ${nodeId}:`, e);

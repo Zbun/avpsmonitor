@@ -46,6 +46,13 @@ export interface VPSNode {
     resetDay: number;          // 流量重置日（1-28，表示每月几号重置）
   };
 
+  // Agent 上报的三网延迟测试结果（毫秒，-1 表示不可达）
+  latency?: {
+    CT: number;  // 电信
+    CU: number;  // 联通
+    CM: number;  // 移动
+  } | null;
+
   // 最后更新时间
   lastUpdate: number;  // 时间戳
 }

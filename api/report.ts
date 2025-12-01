@@ -227,6 +227,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ...data.network,
         monthlyUsed: monthlyUsed,
       },
+      // 保存延迟测试数据（如果 Agent 上报了）
+      latency: data.latency || null,
     };
 
     // 存储节点数据到 Redis，设置 20 秒过期（结合 4 秒上报间隔，给 5 次容错机会）

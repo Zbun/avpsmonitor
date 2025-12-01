@@ -29,9 +29,20 @@ TRAFFIC_RESET_DAY="${TRAFFIC_RESET_DAY:-1}"
 # 用于计算网络速度的变量
 LAST_RX=0
 LAST_TX=0
-LAST_TIME=0
+LAST_TIME_MS=0
 
 # ===== 工具函数 =====
+
+# 获取毫秒级时间戳
+get_time_ms() {
+    # 优先使用 date +%s%3N (Linux)
+    if date +%s%3N >/dev/null 2>&1; then
+        date +%s%3N
+    else
+        # 降级到秒级并乘以 1000
+        echo $(($(date +%s) * 1000))
+    fi
+}
 
 # 获取主网卡名称
 get_main_interface() {
@@ -102,7 +113,7 @@ get_network_bytes() {
 
 # 计算网络速度
 calculate_network_speed() {
-    local now=$(date +%s)
+    local now=$(get_time_ms)
     local net=($(get_network_bytes))
     local rx=${net[0]}
     local tx=${net[1]}
@@ -110,17 +121,21 @@ calculate_network_speed() {
     local rx_speed=0
     local tx_speed=0
     
-    if [ $LAST_TIME -gt 0 ]; then
-        local elapsed=$((now - LAST_TIME))
-        if [ $elapsed -gt 0 ]; then
-            rx_speed=$(( (rx - LAST_RX) / elapsed ))
-            tx_speed=$(( (tx - LAST_TX) / elapsed ))
+    if [ $LAST_TIME_MS -gt 0 ]; then
+        local elapsed_ms=$((now - LAST_TIME_MS))
+        if [ $elapsed_ms -gt 0 ]; then
+            # 计算每秒字节数: (字节差 * 1000) / 毫秒差
+            rx_speed=$(( (rx - LAST_RX) * 1000 / elapsed_ms ))
+            tx_speed=$(( (tx - LAST_TX) * 1000 / elapsed_ms ))
+            # 防止负数（系统重启或计数器溢出）
+            [ $rx_speed -lt 0 ] && rx_speed=0
+            [ $tx_speed -lt 0 ] && tx_speed=0
         fi
     fi
     
     LAST_RX=$rx
     LAST_TX=$tx
-    LAST_TIME=$now
+    LAST_TIME_MS=$now
     
     # 返回: 下载速度 上传速度 总下载 总上传
     echo "$rx_speed $tx_speed $rx $tx"
@@ -181,7 +196,57 @@ get_ipv6() {
     fi
 }
 
+# 三网延迟测试目标（使用各运营商 DNS 服务器）
+# 电信: 114.114.114.114 (114DNS) 或 202.96.128.86 (广东电信)
+# 联通: 123.125.81.6 (北京联通) 或 221.5.88.88 (山东联通)  
+# 移动: 211.136.192.6 (北京移动) 或 183.232.231.172 (广东移动)
+CT_TEST_IP="114.114.114.114"
+CU_TEST_IP="123.125.81.6"
+CM_TEST_IP="211.136.192.6"
+
+# Ping 测试（返回延迟毫秒数，失败返回 -1）
+ping_test() {
+    local ip=$1
+    local count=${2:-3}
+    
+    # 使用 ping 命令测试，取平均值
+    local result=$(ping -c $count -W 2 $ip 2>/dev/null | tail -1 | awk -F'/' '{print $5}')
+    
+    if [ -n "$result" ] && [ "$result" != "0" ]; then
+        # 四舍五入到整数
+        printf "%.0f" "$result" 2>/dev/null || echo "-1"
+    else
+        echo "-1"
+    fi
+}
+
+# 获取三网延迟（返回 JSON 格式）
+get_latency_test() {
+    local ct_latency=$(ping_test $CT_TEST_IP)
+    local cu_latency=$(ping_test $CU_TEST_IP)
+    local cm_latency=$(ping_test $CM_TEST_IP)
+    
+    # 构建 JSON
+    echo "{\"CT\": $ct_latency, \"CU\": $cu_latency, \"CM\": $cm_latency}"
+}
+
 # ===== 主逻辑 =====
+
+# 延迟测试缓存（每分钟更新一次，避免频繁 ping）
+LATENCY_CACHE=""
+LATENCY_CACHE_TIME=0
+
+# 获取延迟数据（带缓存）
+get_cached_latency() {
+    local now=$(date +%s)
+    local cache_ttl=60  # 60秒缓存
+    
+    if [ -z "$LATENCY_CACHE" ] || [ $((now - LATENCY_CACHE_TIME)) -gt $cache_ttl ]; then
+        LATENCY_CACHE=$(get_latency_test)
+        LATENCY_CACHE_TIME=$now
+    fi
+    echo "$LATENCY_CACHE"
+}
 
 # 构建 JSON 数据
 build_json() {
@@ -196,6 +261,7 @@ build_json() {
     local os_info=$(get_os_info)
     local ipv4=$(get_ipv4)
     local ipv6=$(get_ipv6)
+    local latency=$(get_cached_latency)
     
     # 计算月流量（简化：使用总流量）
     local monthly_used=$((${net[2]} + ${net[3]}))
@@ -232,7 +298,8 @@ build_json() {
     "totalDownload": ${net[2]},
     "totalUpload": ${net[3]},
     "monthlyUsed": $monthly_used
-  }
+  },
+  "latency": $latency
 }
 EOF
 }
@@ -280,9 +347,10 @@ main() {
     
     echo "Starting monitor agent..."
     
-    # 初始化网络统计
+    # 初始化网络统计（需要两次采样才能计算速度）
+    echo "Initializing network statistics..."
     calculate_network_speed >/dev/null
-    sleep 1
+    sleep 2  # 等待 2 秒以获取更准确的初始速度
     
     while true; do
         if send_report; then

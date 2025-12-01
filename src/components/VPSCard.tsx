@@ -575,21 +575,23 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         }`}>{expireInfo.text}</div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">剩余流量</div>
-                      <div className="font-medium text-slate-700 dark:text-white">
-                        {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}/{formatBytes(node.network.monthlyTotal)}
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">剩余</div>
+                      <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
+                        {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总上传</div>
-                      <div className="font-medium text-green-600 dark:text-green-400">
-                        {formatBytes(node.network.totalUpload)}
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">月流量</div>
+                      <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
+                        {formatBytes(node.network.monthlyTotal)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总下载</div>
-                      <div className="font-medium text-blue-600 dark:text-blue-400">
-                        {formatBytes(node.network.totalDownload)}
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总↑↓</div>
+                      <div className="font-medium whitespace-nowrap text-[10px]">
+                        <span className="text-green-600 dark:text-green-400">{formatBytes(node.network.totalUpload)}</span>
+                        <span className="text-slate-400 mx-0.5">/</span>
+                        <span className="text-blue-600 dark:text-blue-400">{formatBytes(node.network.totalDownload)}</span>
                       </div>
                     </div>
                     <div>
@@ -600,8 +602,16 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                   {/* 系统信息 */}
                   <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50 text-[11px]">
-                    <span className="text-slate-400">系统:</span>
-                    <span className="ml-1 text-slate-600 dark:text-gray-300">{node.os}</span>
+                    <div className="flex items-center justify-between flex-wrap gap-y-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">系统:</span>
+                        <span className="text-slate-600 dark:text-gray-300">{node.os}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-400">内存: <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
+                        <span className="text-slate-400">硬盘: <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

@@ -36,11 +36,34 @@ async function measureLatency(url: string): Promise<number | null> {
   }
 }
 
-// 生成真实延迟测试数据
+// 生成真实延迟测试数据（优先使用 Agent 上报的数据）
 async function performRealLatencyTest(nodes: VPSNode[]): Promise<LatencyTest[]> {
+  // 如果没有 Agent 数据，回退到前端估算
   const apiLatency = await measureLatency(`${window.location.origin}/api/nodes`);
 
   return nodes.map(node => {
+    // 优先使用 Agent 上报的延迟数据
+    if (node.latency && (node.latency.CT > 0 || node.latency.CU > 0 || node.latency.CM > 0)) {
+      const createISPFromAgent = (code: 'CT' | 'CU' | 'CM', name: string, latency: number): ISPLatency => ({
+        name,
+        code,
+        latency: latency > 0 ? latency : null,
+        status: latency > 0 ? getLatencyStatus(latency) : 'offline',
+        packetLoss: latency > 0 ? 0 : 100,
+      });
+
+      return {
+        nodeId: node.id,
+        isps: [
+          createISPFromAgent('CT', '电信', node.latency.CT),
+          createISPFromAgent('CU', '联通', node.latency.CU),
+          createISPFromAgent('CM', '移动', node.latency.CM),
+        ],
+        lastTest: Date.now(),
+      };
+    }
+
+    // 回退到基于 API 延迟的估算
     const baseLatency = apiLatency || 100;
     const regionFactors: Record<string, number> = {
       'CN': 0.5,
