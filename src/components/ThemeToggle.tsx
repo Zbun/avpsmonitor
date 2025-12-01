@@ -23,7 +23,7 @@ export const ThemeToggle: React.FC = () => {
           flex items-center justify-center
           ${theme === 'dark'
             ? 'left-1 bg-slate-900'
-            : 'left-8 bg-white shadow-md'
+            : 'left-8 bg-white'
           }
         `}
       >
@@ -32,14 +32,6 @@ export const ThemeToggle: React.FC = () => {
         ) : (
           <Sun className="w-3 h-3 text-yellow-500" />
         )}
-      </div>
-
-      {/* 背景图标 */}
-      <div className="flex justify-between items-center h-full px-1">
-        <Sun className={`w-3 h-3 transition-opacity ${theme === 'dark' ? 'text-gray-500 opacity-50' : 'text-yellow-500 opacity-0'
-          }`} />
-        <Moon className={`w-3 h-3 transition-opacity ${theme === 'dark' ? 'text-yellow-400 opacity-0' : 'text-gray-400 opacity-50'
-          }`} />
       </div>
     </button>
   );

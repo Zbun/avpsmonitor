@@ -490,12 +490,12 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
           return (
             <div
               key={node.id}
-              className={`${node.status === 'offline' ? 'opacity-60' : ''}`}
+              className={`${node.status === 'offline' ? 'opacity-60' : ''} ${isExpanded ? 'bg-blue-50 dark:bg-blue-950/30' : ''}`}
             >
               {/* 可点击的主区域 */}
               <div
                 onClick={() => toggleExpand(node.id)}
-                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-700/30"
+                className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer active:bg-slate-50 dark:active:bg-slate-700/30 ${isExpanded ? 'bg-blue-100/50 dark:bg-blue-900/20' : ''}`}
               >
                 {/* 左侧: 国旗+名称 */}
                 <span className="flag-emoji text-base">{flag}</span>
@@ -537,7 +537,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
               {/* 展开详情 */}
               {isExpanded && (
-                <div className="px-3 pb-3 pt-1 bg-slate-50/50 dark:bg-slate-800/30">
+                <div className="mx-2 px-3 py-2 bg-blue-50/80 dark:bg-blue-950/30 rounded-lg">
                   {/* 延迟信息 */}
                   {latencyTest && (
                     <div className="flex items-center justify-center gap-3 mb-2 py-1.5 bg-white dark:bg-slate-800/50 rounded text-xs">

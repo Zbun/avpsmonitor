@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Server, Activity } from 'lucide-react';
+import React, { useState } from 'react';
+import { RefreshCw, Server, ChevronDown } from 'lucide-react';
 import { VPSNode, LatencyTest } from '../types';
 import ThemeToggle from './ThemeToggle';
 
@@ -16,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isRefreshing
 }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
   const onlineCount = nodes.filter(n => n.status === 'online').length;
   const warningCount = nodes.filter(n => n.status === 'warning').length;
   const offlineCount = nodes.filter(n => n.status === 'offline').length;
@@ -30,90 +32,96 @@ export const Header: React.FC<HeaderProps> = ({
   }, 0) / latencyTests.filter(t => t.isps.some(i => i.latency !== null)).length;
 
   return (
-    <header className="backdrop-blur-md border-b sticky top-0 z-50 bg-white/90 dark:bg-slate-900/95 border-slate-200 dark:border-slate-700/50 shadow-sm dark:shadow-none">
+    <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo 和标题 */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Server className="w-5 h-5 text-white" />
+        {/* 移动端布局 */}
+        <div className="md:hidden flex items-center justify-between h-12">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+              <Server className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-800 dark:text-white">VPS Monitor</h1>
-              <p className="text-xs text-slate-500 dark:text-gray-400">服务器监控探针</p>
-            </div>
+            <span className="font-semibold text-slate-800 dark:text-white">VPS Monitor</span>
           </div>
-
-          {/* 状态概览 */}
-          <div className="hidden md:flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm text-slate-600 dark:text-gray-300">
-                <span className="font-semibold text-green-600 dark:text-green-400">{onlineCount}</span> 在线
-              </span>
+          <div className="flex items-center">
+            <div className="flex items-center gap-2 mr-2 text-xs text-slate-500 dark:text-gray-400">
+              <span className="text-green-600 dark:text-green-400 font-medium">{onlineCount}</span>
+              {offlineCount > 0 && <span className="text-red-500 font-medium">/ {offlineCount}</span>}
             </div>
-            {warningCount > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-                <span className="text-sm text-slate-600 dark:text-gray-300">
-                  <span className="font-semibold text-yellow-600 dark:text-yellow-400">{warningCount}</span> 警告
-                </span>
-              </div>
-            )}
-            {offlineCount > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full" />
-                <span className="text-sm text-slate-600 dark:text-gray-300">
-                  <span className="font-semibold text-red-600 dark:text-red-400">{offlineCount}</span> 离线
-                </span>
-              </div>
-            )}
-            <div className="h-4 w-px bg-slate-300 dark:bg-slate-600" />
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-              <span className="text-sm text-slate-600 dark:text-gray-300">
-                平均延迟: <span className="font-semibold text-blue-600 dark:text-blue-400">
-                  {isNaN(avgLatency) ? 'N/A' : `${Math.round(avgLatency)}ms`}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {/* 操作按钮 */}
-          <div className="flex items-center gap-3">
-            {/* 主题切换 */}
             <ThemeToggle />
-
-            {/* 刷新按钮 */}
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg
-                bg-indigo-100 hover:bg-indigo-200
-                dark:bg-indigo-500/20 dark:hover:bg-indigo-500/30
-                text-indigo-600 dark:text-indigo-400
-                font-medium text-sm
-                transition-all duration-200
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
+              className="p-2 text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">刷新</span>
+            </button>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showMenu ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* 桌面端布局 */}
+        <div className="hidden md:flex items-center justify-between h-14">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-indigo-500 rounded-lg flex items-center justify-center">
+              <Server className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">VPS Monitor</h1>
+              <p className="text-[11px] text-slate-400 dark:text-gray-500">服务器监控</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 text-sm text-slate-600 dark:text-gray-300">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              <span><span className="font-medium text-green-600 dark:text-green-400">{onlineCount}</span> 在线</span>
+            </div>
+            {warningCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                <span><span className="font-medium text-yellow-600 dark:text-yellow-400">{warningCount}</span> 警告</span>
+              </div>
+            )}
+            {offlineCount > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span><span className="font-medium text-red-600 dark:text-red-400">{offlineCount}</span> 离线</span>
+              </div>
+            )}
+            <span className="text-slate-300 dark:text-slate-600">|</span>
+            <span>延迟 <span className="font-medium text-blue-600 dark:text-blue-400">{isNaN(avgLatency) ? '-' : `${Math.round(avgLatency)}ms`}</span></span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>刷新</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 移动端状态概览 */}
-      <div className="md:hidden border-t px-4 py-2 border-slate-200 dark:border-slate-700/50 bg-slate-50/80 dark:bg-transparent">
-        <div className="flex items-center justify-center gap-4 text-xs">
-          <span className="text-green-600 dark:text-green-400 font-medium">{onlineCount} 在线</span>
-          {warningCount > 0 && <span className="text-yellow-600 dark:text-yellow-400 font-medium">{warningCount} 警告</span>}
-          {offlineCount > 0 && <span className="text-red-600 dark:text-red-400 font-medium">{offlineCount} 离线</span>}
-          <span className="text-blue-600 dark:text-blue-400 font-medium">
-            延迟: {isNaN(avgLatency) ? 'N/A' : `${Math.round(avgLatency)}ms`}
-          </span>
+      {/* 移动端下拉面板 */}
+      <div className={`md:hidden overflow-hidden transition-all duration-200 ${showMenu ? 'max-h-16' : 'max-h-0'}`}>
+        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 text-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span>在线 <span className="font-semibold text-green-600 dark:text-green-400">{onlineCount}</span></span>
+              <span>警告 <span className="font-semibold text-yellow-600 dark:text-yellow-400">{warningCount}</span></span>
+              <span>离线 <span className="font-semibold text-red-600 dark:text-red-400">{offlineCount}</span></span>
+            </div>
+            <span>延迟 <span className="font-semibold text-blue-600 dark:text-blue-400">{isNaN(avgLatency) ? '-' : `${Math.round(avgLatency)}ms`}</span></span>
+          </div>
         </div>
       </div>
     </header>
