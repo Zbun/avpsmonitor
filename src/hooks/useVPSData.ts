@@ -147,6 +147,13 @@ async function fetchVPSData(): Promise<APIResponse> {
       if (!response.ok) {
         throw new Error('Failed to fetch VPS data');
       }
+
+      // 检查响应类型，避免解析 HTML
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API returned non-JSON response (dev mode?)');
+      }
+
       const data = await response.json();
       return {
         nodes: data.nodes || [],
@@ -193,7 +200,12 @@ export function useVPSData(): UseVPSDataReturn {
       const tests = performRealLatencyTest(response.nodes);
       setLatencyTests(tests);
     } catch (error) {
-      console.error('Failed to fetch VPS data:', error);
+      // 本地开发模式下 API 不可用是正常的，只输出简洁提示
+      if (import.meta.env.DEV) {
+        console.info('📊 Using demo data (API not available in dev mode)');
+      } else {
+        console.error('Failed to fetch VPS data:', error);
+      }
       if (nodesRef.current.length === 0) {
         const demoData = generateDemoNodes();
         setNodes(demoData);
