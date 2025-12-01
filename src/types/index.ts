@@ -122,9 +122,9 @@ export function formatUptime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
 
   if (days > 0) {
-    return `${days}天 ${hours}小时`;
+    return `${days}天${hours}时`;
   } else if (hours > 0) {
-    return `${hours}小时 ${minutes}分钟`;
+    return `${hours}时${minutes}分`;
   } else {
     return `${minutes}分钟`;
   }

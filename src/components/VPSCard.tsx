@@ -558,7 +558,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     </div>
                     <div>
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">运行</div>
-                      <div className="font-medium text-slate-700 dark:text-white">
+                      <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
                         {node.status === 'offline' ? '-' : formatUptime(node.uptime)}
                       </div>
                     </div>
