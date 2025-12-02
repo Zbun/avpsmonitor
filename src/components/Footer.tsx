@@ -1,33 +1,39 @@
 import React from 'react';
-import { Github, Heart, ExternalLink, Server } from 'lucide-react';
+import { Github, Heart, Zap, Cloud, MapPin, Terminal } from 'lucide-react';
+
+const features = [
+  { icon: Cloud, text: 'Serverless' },
+  { icon: Zap, text: '< 1MB RAM' },
+  { icon: MapPin, text: 'Auto GeoIP' },
+  { icon: Terminal, text: 'Shell Only' },
+];
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="bg-white/50 dark:bg-slate-800/30 border-t border-slate-200 dark:border-slate-700/50 py-3 mt-4">
+    <footer className="mt-3 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200/50 dark:border-slate-700/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
-            <Server className="w-3.5 h-3.5" />
-            <span>Powered by</span>
-            <span className="text-slate-700 dark:text-gray-300">Vercel + KV</span>
-            <span className="text-slate-300 dark:text-gray-600">·</span>
-            <span>Made with</span>
-            <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* 特性标签 */}
+          <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-gray-500">
+            {features.map((feature, index) => (
+              <span key={index} className="inline-flex items-center gap-1">
+                <feature.icon className="w-3 h-3" />
+                {feature.text}
+              </span>
+            ))}
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-gray-400">
+          {/* GitHub + Heart */}
+          <div className="flex items-center gap-2 text-slate-400 dark:text-gray-500">
+            <Heart className="w-3.5 h-3.5 text-red-400 fill-red-400" />
             <a
               href="https://github.com/Zbun/avpsmonitor"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-slate-800 dark:hover:text-white transition-colors"
+              className="hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
             >
-              <Github className="w-3.5 h-3.5" />
-              <span>GitHub</span>
-              <ExternalLink className="w-2.5 h-2.5" />
+              <Github className="w-4 h-4" />
             </a>
-            <span className="text-slate-300 dark:text-gray-600">|</span>
-            <span>VPS Monitor v1.0</span>
           </div>
         </div>
       </div>
