@@ -10,7 +10,7 @@ const features = [
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="mt-3 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200/50 dark:border-slate-700/30">
+    <footer className="mt-3 py-3 bg-slate-50/70 dark:bg-slate-800/40 backdrop-blur-sm border-t border-slate-200/50 dark:border-slate-700/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* 特性标签 */}

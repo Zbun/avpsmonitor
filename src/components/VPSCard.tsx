@@ -42,8 +42,8 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
   if (viewMode === 'grid') {
     return (
       <div className={`
-        bg-white/90 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl 
-        border border-slate-200 dark:border-slate-700/50
+        bg-white/70 dark:bg-slate-800/60 backdrop-blur-md rounded-xl 
+        border border-slate-200/50 dark:border-slate-700/40
         p-4 card-hover relative overflow-hidden
         ${node.status === 'offline' ? 'opacity-60' : ''}
       `}>
@@ -254,12 +254,12 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
   };
 
   return (
-    <div className="bg-white/90 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
+    <div className="bg-white/70 dark:bg-slate-800/60 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-slate-700/40 overflow-hidden">
       {/* 桌面端表格 */}
       <div className="hidden md:block overflow-x-auto max-h-[calc(100vh-240px)]">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-slate-100 dark:bg-slate-900/95 text-left text-xs">
+            <tr className="bg-slate-100/90 dark:bg-slate-900/80 text-left text-xs backdrop-blur-sm">
               <th className="px-3 py-2 font-medium text-slate-600 dark:text-gray-300">服务器</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">状态</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">CPU</th>

@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, 0) / latencyTests.filter(t => t.isps.some(i => i.latency !== null)).length;
 
   return (
-    <header className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+    <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 移动端布局 */}
         <div className="md:hidden flex items-center justify-between h-12">

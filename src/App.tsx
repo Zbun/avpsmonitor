@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Header, Footer, VPSCard, VPSTable, LatencyPanel } from './components';
+import { Header, Footer, VPSCard, VPSTable, LatencyPanel, ParticleBackground } from './components';
 import { useVPSData } from './hooks';
 
 function App() {
@@ -38,7 +38,10 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      {/* 粒子背景 */}
+      <ParticleBackground />
+
       <Header
         nodes={nodes}
         latencyTests={latencyTests}

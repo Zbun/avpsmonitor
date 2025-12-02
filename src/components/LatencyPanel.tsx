@@ -41,7 +41,7 @@ export const LatencyPanel: React.FC<LatencyPanelProps> = ({
   };
 
   return (
-    <div className="bg-white/90 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl border border-slate-200 dark:border-slate-700/50 p-4">
+    <div className="bg-white/70 dark:bg-slate-800/60 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-slate-700/50 p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
           <Zap className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
