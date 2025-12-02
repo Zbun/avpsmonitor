@@ -138,6 +138,14 @@ sudo systemctl disable vps-agent
 
 ## 卸载
 
+### 一键卸载
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/uninstall.sh | bash
+```
+
+### 手动卸载
+
 ```bash
 sudo systemctl stop vps-agent
 sudo systemctl disable vps-agent

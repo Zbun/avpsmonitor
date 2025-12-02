@@ -181,9 +181,8 @@ if systemctl is-active --quiet vps-agent; then
     echo "  journalctl -u vps-agent -f   # 查看日志"
     echo "  systemctl restart vps-agent  # 重启服务"
     echo ""
-    echo "卸载命令:"
-    echo "  systemctl stop vps-agent && systemctl disable vps-agent"
-    echo "  rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service"
+    echo "卸载:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/Zbun/avpsmonitor/main/agent/uninstall.sh | bash"
     echo ""
 else
     echo -e "${RED}"
