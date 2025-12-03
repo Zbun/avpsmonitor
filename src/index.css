@@ -55,20 +55,12 @@ body {
 
 .dark body,
 :root.dark body {
-  background:
-    linear-gradient(rgba(30, 41, 59, 0.5) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
-    linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-  background-size: 40px 40px, 40px 40px, 100% 100%;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
 }
 
 .light body,
 :root.light body {
-  background:
-    linear-gradient(rgba(203, 213, 225, 0.4) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(203, 213, 225, 0.4) 1px, transparent 1px),
-    linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
-  background-size: 40px 40px, 40px 40px, 100% 100%;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
 }
 
 /* Custom scrollbar */
