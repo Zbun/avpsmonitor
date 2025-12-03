@@ -1,0 +1,43 @@
+# VPS Monitor - 防止爬虫抓取
+User-agent: *
+Disallow: /api/
+Disallow: /api/nodes
+Disallow: /api/report
+
+# 禁止常见爬虫
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+User-agent: 360Spider
+Disallow: /
+
+User-agent: ByteSpider
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# 禁止所有爬虫索引
+User-agent: *
+Noindex: /
