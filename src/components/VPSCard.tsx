@@ -603,15 +603,12 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   </div>
 
                   {/* 系统信息 */}
-                  <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50 text-[11px]">
-                    <div className="flex items-center justify-between flex-wrap gap-y-1">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-400">系统:</span>
-                        <span className="text-slate-600 dark:text-gray-300">{node.os}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-400">内存: <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
-                        <span className="text-slate-400">硬盘: <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
+                  <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50 text-[10px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-slate-400 truncate"><span className="text-slate-600 dark:text-gray-300">{node.os}</span></span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-slate-400 whitespace-nowrap">内存 <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
+                        <span className="text-slate-400 whitespace-nowrap">盘 <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
                       </div>
                     </div>
                   </div>
