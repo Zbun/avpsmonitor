@@ -92,6 +92,16 @@ function getPreConfiguredServers(): Map<string, ServerConfig> {
   return servers;
 }
 
+// IP 脱敏函数：显示首段和末段，中间用 x 代替
+function maskIPv4(ip: string): string {
+  if (!ip || ip === '-') return '-';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.x.x.${parts[3]}`;
+  }
+  return 'x.x.x.x';
+}
+
 // 根据预配置生成离线节点占位数据
 function generatePlaceholderNode(id: string, config: ServerConfig) {
   return {
@@ -102,7 +112,7 @@ function generatePlaceholderNode(id: string, config: ServerConfig) {
     expireDate: config.expireDate || '',
     status: 'offline',
     ipAddress: '-',
-    protocol: 'KVM',
+    ipv6Supported: false,
     os: 'Unknown',
     uptime: 0,
     load: [0, 0, 0],
@@ -239,8 +249,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
           location: preConfig?.location || nodeData.location || 'Unknown',
           status: isOnline ? 'online' : 'offline',
-          // IPv6 地址
-          ipv6Address: nodeData.ipv6Address || '',
+          // IP 脱敏处理
+          ipAddress: maskIPv4(nodeData.ipAddress || ''),
+          ipv6Supported: !!(nodeData.ipv6Address),
           // 到期时间：VPS_SERVERS 配置 > Agent 上报 > 空
           expireDate: preConfig?.expireDate || nodeData.expireDate || '',
           // 简化操作系统名称

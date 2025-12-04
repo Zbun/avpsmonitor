@@ -52,9 +52,9 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
 
         {/* 头部信息 */}
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className={`
-              w-9 h-9 rounded-lg flex items-center justify-center
+              w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
               ${node.status === 'online' ? 'bg-green-500/20' :
                 node.status === 'warning' ? 'bg-yellow-500/20' : 'bg-red-500/20'}
             `}>
@@ -62,18 +62,18 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
                 node.status === 'warning' ? 'text-yellow-400' : 'text-red-400'
                 }`} />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <h3 className="font-semibold text-sm text-slate-800 dark:text-white">{node.name}</h3>
-                <span className="flag-emoji text-sm">{flag}</span>
+                <h3 className="font-semibold text-sm text-slate-800 dark:text-white truncate">{node.name}</h3>
+                <span className="flag-emoji text-sm flex-shrink-0">{flag}</span>
               </div>
               <p className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-1">
-                <Globe className="w-3 h-3" />
-                {node.location} · {node.protocol}
+                <Globe className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{node.location}</span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
             <span className={`w-2 h-2 rounded-full ${statusColor} ${node.status === 'online' ? 'animate-pulse glow-green' :
               node.status === 'warning' ? 'glow-yellow' : ''
               }`} />
@@ -86,10 +86,12 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
           <Monitor className="w-3 h-3" />
           <span>{node.os}</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
+          <span className="font-mono">{node.ipAddress}</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
           {/* IPv6 状态 */}
-          <span className={`flex items-center gap-0.5 ${node.ipv6Address ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`flex items-center gap-0.5 ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
             <span className="font-mono">IPv6</span>
-            {node.ipv6Address ? '✓' : '✗'}
+            {node.ipv6Supported ? '✓' : '✗'}
           </span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           <Calendar className="w-3 h-3" />
@@ -455,13 +457,13 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             </div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">协议</div>
-                            <div className="font-medium text-slate-700 dark:text-white">{node.protocol}</div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv4</div>
+                            <div className="font-medium font-mono text-slate-700 dark:text-white">{node.ipAddress || '-'}</div>
                           </div>
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
-                            <div className={`font-medium ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                              {node.ipv6Address ? '✓ 支持' : '✗ 不支持'}
+                            <div className={`font-medium ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                              {node.ipv6Supported ? '✓ 支持' : '✗ 不支持'}
                             </div>
                           </div>
                         </div>
@@ -605,11 +607,12 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   {/* 系统信息 */}
                   <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700/50 text-[10px]">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-400 truncate"><span className="text-slate-600 dark:text-gray-300">{node.os}</span></span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-slate-400 whitespace-nowrap">内存 <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
-                        <span className="text-slate-400 whitespace-nowrap">硬盘 <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
-                      </div>
+                      <span className="text-slate-600 dark:text-gray-300 truncate">{node.os}</span>
+                      <span className="text-slate-400 font-mono shrink-0">{node.ipAddress}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <span className="text-slate-400 whitespace-nowrap">内存 <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
+                      <span className="text-slate-400 whitespace-nowrap">硬盘 <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
                     </div>
                   </div>
                 </div>
