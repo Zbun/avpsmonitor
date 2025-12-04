@@ -82,20 +82,20 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
         </div>
 
         {/* 系统信息行 */}
-        <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 dark:text-gray-400 flex-wrap">
-          <Monitor className="w-3 h-3" />
-          <span>{node.os}</span>
+        <div className="flex items-center gap-1.5 mb-3 text-xs text-slate-500 dark:text-gray-400 whitespace-nowrap overflow-x-auto">
+          <Monitor className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate max-w-[80px]">{node.os}</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
-          <span className="font-mono">{node.ipAddress}</span>
+          <span className="font-mono flex-shrink-0">{node.ipAddress}</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           {/* IPv6 状态 */}
-          <span className={`flex items-center gap-0.5 ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
-            <span className="font-mono">IPv6</span>
+          <span className={`flex items-center gap-0.5 flex-shrink-0 ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+            <span className="font-mono">v6</span>
             {node.ipv6Supported ? '✓' : '✗'}
           </span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
-          <Calendar className="w-3 h-3" />
-          <span className={expireInfo.isExpired ? 'text-red-500' : expireInfo.isNear ? 'text-yellow-500' : ''}>
+          <Calendar className="w-3 h-3 flex-shrink-0" />
+          <span className={`flex-shrink-0 ${expireInfo.isExpired ? 'text-red-500' : expireInfo.isNear ? 'text-yellow-500' : ''}`}>
             {expireInfo.text}
           </span>
         </div>

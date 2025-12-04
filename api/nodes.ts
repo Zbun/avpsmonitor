@@ -249,9 +249,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
           location: preConfig?.location || nodeData.location || 'Unknown',
           status: isOnline ? 'online' : 'offline',
-          // IP 脱敏处理
-          ipAddress: maskIPv4(nodeData.ipAddress || ''),
-          ipv6Supported: !!(nodeData.ipv6Address),
+          // IP 已在 report.ts 存储时脱敏，这里做兜底处理
+          ipAddress: nodeData.ipAddress || '-',
+          ipv6Supported: !!(nodeData.ipv6Supported || nodeData.ipv6Address),
           // 到期时间：VPS_SERVERS 配置 > Agent 上报 > 空
           expireDate: preConfig?.expireDate || nodeData.expireDate || '',
           // 简化操作系统名称

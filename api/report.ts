@@ -8,6 +8,16 @@ const API_TOKEN = process.env.API_TOKEN || 'your-secret-token';
 const KV_PREFIX = 'vps:node:';
 const GEO_CACHE_PREFIX = 'vps:geo:';
 
+// IP 脱敏函数：显示首段和末段，中间用 x 代替
+function maskIPv4(ip: string): string {
+  if (!ip || ip === '-') return '-';
+  const parts = ip.split('.');
+  if (parts.length === 4) {
+    return `${parts[0]}.x.x.${parts[3]}`;
+  }
+  return 'x.x.x.x';
+}
+
 // Redis 客户端单例
 let redisClient: Redis | null = null;
 
@@ -215,8 +225,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 存储节点数据到 Redis，设置 60 秒过期（节点超时即自动清除）
     const nodeData = {
       id: nodeId,
-      ipAddress,
+      // IP 脱敏处理，不存储完整 IP
+      ipAddress: maskIPv4(ipAddress),
+      // IPv6 只存储是否支持，不存储完整地址
+      ipv6Supported: !!(data.ipv6Address),
       ...data,
+      // 删除原始 ipv6Address 字段
+      ipv6Address: undefined,
       name: name || nodeId,
       location: location || 'Unknown',
       countryCode: countryCode || 'US',
