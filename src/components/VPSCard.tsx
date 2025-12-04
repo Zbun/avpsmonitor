@@ -608,7 +608,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                       <span className="text-slate-400 truncate"><span className="text-slate-600 dark:text-gray-300">{node.os}</span></span>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="text-slate-400 whitespace-nowrap">内存 <span className="text-cyan-600 dark:text-cyan-400">{formatBytes(node.memory.used)}/{formatBytes(node.memory.total)}</span></span>
-                        <span className="text-slate-400 whitespace-nowrap">盘 <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
+                        <span className="text-slate-400 whitespace-nowrap">硬盘 <span className="text-pink-600 dark:text-pink-400">{formatBytes(node.disk.used)}/{formatBytes(node.disk.total)}</span></span>
                       </div>
                     </div>
                   </div>
