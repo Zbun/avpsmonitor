@@ -8,10 +8,10 @@ import { VPSNode, LatencyTest } from '../types';
 
 // Demo 节点配置（简化版，用于演示）
 const demoNodesConfig = [
-  { id: 'demo-hk', name: '香港 BGP', location: 'Hong Kong', countryCode: 'HK', protocol: 'KVM' },
-  { id: 'demo-jp', name: '东京 Lite', location: 'Tokyo', countryCode: 'JP', protocol: 'KVM' },
-  { id: 'demo-us', name: '洛杉矶 CN2', location: 'Los Angeles', countryCode: 'US', protocol: 'OpenVZ' },
-  { id: 'demo-sg', name: '新加坡', location: 'Singapore', countryCode: 'SG', protocol: 'KVM' },
+  { id: 'demo-hk', name: '香港 BGP', location: 'Hong Kong', countryCode: 'HK' },
+  { id: 'demo-jp', name: '东京 Lite', location: 'Tokyo', countryCode: 'JP' },
+  { id: 'demo-us', name: '洛杉矶 CN2', location: 'Los Angeles', countryCode: 'US' },
+  { id: 'demo-sg', name: '新加坡', location: 'Singapore', countryCode: 'SG' },
 ];
 
 // 生成随机数
@@ -36,8 +36,8 @@ function generateDemoNode(config: typeof demoNodesConfig[0], index: number): VPS
     name: config.name,
     location: config.location,
     countryCode: config.countryCode,
-    ipAddress: `${randInt(1, 255)}.${randInt(1, 255)}.xxx.${randInt(1, 255)}`,
-    protocol: config.protocol,
+    ipAddress: `${randInt(1, 255)}.x.x.${randInt(1, 255)}`,
+    ipv6Supported: Math.random() > 0.5,
     status: isOffline ? 'offline' : cpuUsage > 70 || memUsage > 80 ? 'warning' : 'online',
     os: ['Ubuntu 22.04', 'Debian 12', 'CentOS 7', 'Rocky Linux 9'][index],
     uptime: isOffline ? 0 : randInt(86400, 86400 * 60), // 1-60 天
