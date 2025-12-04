@@ -185,17 +185,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const results = await pipeline.exec();
 
+    // 30天过期时间（与月流量周期一致）
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+    // 收集需要从节点列表中清理的过期节点
+    const expiredNodeIds: string[] = [];
+
     // 处理每个节点的数据
     const nodes = nodeIds.map((nodeId: string, index: number) => {
       try {
         const [err, rawData] = results?.[index] || [null, null];
         if (err || !rawData) {
-          // 节点数据过期，稍后清理
+          // 节点数据已过期（Redis key 不存在），标记为需要清理
+          expiredNodeIds.push(nodeId);
           return null;
         }
 
         // 解析 JSON 数据
         const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+
+        // 检查是否超过 30 天未更新，是则清理
+        const isExpired = (now - nodeData.lastUpdate) >= THIRTY_DAYS_MS;
+        if (isExpired) {
+          expiredNodeIds.push(nodeId);
+          preConfigured.delete(nodeId);
+          return null;
+        }
 
         // 检查是否超时（15秒无更新视为离线，给3-4次上报容错）
         const isOnline = (now - nodeData.lastUpdate) < 15000;
@@ -294,6 +309,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 过滤掉 null 值
     const validNodes = nodes.filter(Boolean);
+
+    // 异步清理过期的节点 ID（不阻塞响应）
+    if (expiredNodeIds.length > 0) {
+      redis.srem('vps:nodes', ...expiredNodeIds).catch(e => {
+        console.warn('Failed to cleanup expired node IDs:', e);
+      });
+    }
 
     // 添加预配置但尚未上报数据的节点（显示为离线）
     const remainingPreConfigured = Array.from(preConfigured.entries()).map(([id, config]) =>

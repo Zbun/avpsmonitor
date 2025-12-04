@@ -246,8 +246,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       latency: data.latency || null,
     };
 
-    // 存储节点数据到 Redis，设置 20 秒过期（结合 4 秒上报间隔，给 5 次容错机会）
-    await redis.setex(`${KV_PREFIX}${nodeId}`, 20, JSON.stringify(nodeData));
+    // 存储节点数据到 Redis，设置 30 天过期（与月流量周期一致）
+    const THIRTY_DAYS = 30 * 24 * 60 * 60; // 30天 = 2592000秒
+    await redis.setex(`${KV_PREFIX}${nodeId}`, THIRTY_DAYS, JSON.stringify(nodeData));
 
     // 维护节点列表
     const nodeList = await redis.smembers('vps:nodes') || [];
