@@ -459,10 +459,6 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             <div className="font-medium text-slate-700 dark:text-white">{node.protocol}</div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv4</div>
-                            <div className="font-medium text-slate-700 dark:text-white">{node.ipAddress}</div>
-                          </div>
-                          <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
                             <div className={`font-medium ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
                               {node.ipv6Address ? '✓ 支持' : '✗ 不支持'}
