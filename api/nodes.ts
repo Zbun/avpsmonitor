@@ -92,14 +92,14 @@ function getPreConfiguredServers(): Map<string, ServerConfig> {
   return servers;
 }
 
-// IP 脱敏函数：显示首段和末段，中间用 x 代替
-function maskIPv4(ip: string): string {
-  if (!ip || ip === '-') return '-';
-  const parts = ip.split('.');
-  if (parts.length === 4) {
-    return `${parts[0]}.x.x.${parts[3]}`;
-  }
-  return 'x.x.x.x';
+// 获取 VPS_SERVERS 配置的节点 ID 顺序
+function getConfiguredOrder(): string[] {
+  const config = process.env.VPS_SERVERS;
+  if (!config) return [];
+
+  return config.split(',')
+    .map(item => item.trim().split(':')[0]?.trim())
+    .filter(Boolean);
 }
 
 // 根据预配置生成离线节点占位数据
@@ -323,6 +323,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const allNodes = [...validNodes, ...remainingPreConfigured];
+
+    // 按 VPS_SERVERS 配置顺序排序
+    const configuredOrder = getConfiguredOrder();
+    allNodes.sort((a, b) => {
+      const indexA = configuredOrder.indexOf(a.id);
+      const indexB = configuredOrder.indexOf(b.id);
+      // 不在配置中的节点排到最后
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
 
     // 从环境变量获取刷新间隔配置
     const refreshInterval = parseInt(process.env.REFRESH_INTERVAL || '', 10) || DEFAULTS.refreshInterval;
