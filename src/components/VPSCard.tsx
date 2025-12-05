@@ -587,7 +587,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     <div>
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">月流量</div>
                       <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
-                        {formatBytes(node.network.monthlyTotal)}
+                        {formatBytes(node.network.monthlyTotal)}<span className="text-slate-400 font-normal">/{node.network.resetDay}号</span>
                       </div>
                     </div>
                     <div>
