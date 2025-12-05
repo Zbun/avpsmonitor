@@ -23,6 +23,7 @@ set -e
 SERVER_URL="${SERVER_URL:-${1:-https://your-monitor.vercel.app}}"
 API_TOKEN="${API_TOKEN:-${2:-your-secret-token}}"
 NODE_ID="${NODE_ID:-${3:-node-1}}"
+NODE_NAME="${NODE_NAME:-}"  # 自定义主机名（留空则使用 hostname）
 INTERVAL="${INTERVAL:-4}"  # 上报间隔（秒）
 TRAFFIC_RESET_DAY="${TRAFFIC_RESET_DAY:-1}"
 
@@ -71,6 +72,15 @@ init_interface() {
 # 获取主网卡名称（使用缓存）
 get_main_interface() {
     echo "$CACHED_INTERFACE"
+}
+
+# 获取主机名（优先使用 NODE_NAME 环境变量）
+get_hostname() {
+    if [ -n "$NODE_NAME" ]; then
+        echo "$NODE_NAME"
+    else
+        hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo ""
+    fi
 }
 
 # 获取 CPU 使用率
@@ -228,6 +238,7 @@ build_json() {
     local os_info=$(get_os_info)
     local ipv4=$(get_ipv4)
     local ipv6=$(get_ipv6)
+    local host_name=$(get_hostname)
     
     # 计算月流量（简化：使用总流量）
     local monthly_used=$((${net[2]} + ${net[3]}))
@@ -235,6 +246,7 @@ build_json() {
     cat << EOF
 {
   "nodeId": "$NODE_ID",
+  "name": "$host_name",
   "ipAddress": "$ipv4",
   "ipv6Address": "${ipv6:-}",
   "os": "$os_info",
