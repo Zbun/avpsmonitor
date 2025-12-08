@@ -197,12 +197,6 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
               size="sm"
             />
           </div>
-
-          {/* 总流量 */}
-          <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 mt-2">
-            <span>总上传 <span className="text-green-600 dark:text-green-400">{formatBytes(node.network.totalUpload)}</span></span>
-            <span>总下载 <span className="text-blue-600 dark:text-blue-400">{formatBytes(node.network.totalDownload)}</span></span>
-          </div>
         </div>
 
         {/* 延迟测试 - 优化布局 */}
@@ -269,7 +263,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">硬盘</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↓速度</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↑速度</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量(双向)</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center whitespace-nowrap">
                 <span className="text-blue-500">电</span>/
                 <span className="text-red-500">联</span>/
@@ -361,7 +355,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             'text-red-600 dark:text-red-400'
                           }`}>{trafficPercent}%</span>
                         <span className="text-[10px] text-slate-500 dark:text-gray-400">
-                          用{formatBytes(node.network.monthlyUsed)}/剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
+                          用{formatBytes(node.network.monthlyUsed)}/总{formatBytes(node.network.monthlyTotal)}
                         </span>
                       </div>
                     </td>
@@ -433,27 +427,15 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             </div>
                           </div>
                           <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">月流量</div>
+                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">月流量(双向)</div>
                             <div className="font-medium text-slate-700 dark:text-white">
-                              用{formatBytes(node.network.monthlyUsed)}/剩{formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
+                              用{formatBytes(node.network.monthlyUsed)}/总{formatBytes(node.network.monthlyTotal)}
                             </div>
                           </div>
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">流量周期</div>
                             <div className="font-medium text-slate-700 dark:text-white">
                               每月{node.network.resetDay}号
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">总上传</div>
-                            <div className="font-medium text-green-600 dark:text-green-400">
-                              {formatBytes(node.network.totalUpload)}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">总下载</div>
-                            <div className="font-medium text-blue-600 dark:text-blue-400">
-                              {formatBytes(node.network.totalDownload)}
                             </div>
                           </div>
                           <div>
@@ -579,27 +561,21 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         }`}>{expireInfo.text}</div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">剩余</div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">剩余流量</div>
                       <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
                         {formatBytes(Math.max(0, node.network.monthlyTotal - node.network.monthlyUsed))}
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">月流量</div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">月流量(双向)</div>
                       <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
-                        {formatBytes(node.network.monthlyTotal)}<span className="text-slate-400 font-normal">/{node.network.resetDay}号</span>
+                        {formatBytes(node.network.monthlyTotal)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总上传</div>
-                      <div className="font-medium text-green-600 dark:text-green-400 text-[10px]">
-                        {formatBytes(node.network.totalUpload)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">总下载</div>
-                      <div className="font-medium text-blue-600 dark:text-blue-400 text-[10px]">
-                        {formatBytes(node.network.totalDownload)}
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">周期</div>
+                      <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
+                        每月{node.network.resetDay}号
                       </div>
                     </div>
                   </div>

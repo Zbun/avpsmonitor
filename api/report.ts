@@ -187,7 +187,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 当前日期 < 重置日，周期从上月重置日开始
       cycleStartDate = new Date(currentYear, currentMonth - 1, trafficResetDay);
     }
-    const cycleStartKey = `${cycleStartDate.getFullYear()}-${cycleStartDate.getMonth() + 1}-${cycleStartDate.getDate()}`;
+    // 格式化为标准日期字符串，确保一致性
+    const year = cycleStartDate.getFullYear();
+    const month = String(cycleStartDate.getMonth() + 1).padStart(2, '0');
+    const day = String(cycleStartDate.getDate()).padStart(2, '0');
+    const cycleStartKey = `${year}-${month}-${day}`;
 
     // 获取或创建月流量基准数据
     const trafficKey = `vps:traffic:${nodeId}`;
