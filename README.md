@@ -78,43 +78,45 @@
 
 ### 方式二：部署到 Cloudflare Pages（使用 Workers KV）
 
+> 🎯 **推荐新手**：使用[浏览器部署指南](./CLOUDFLARE_BROWSER_DEPLOY.md)，无需安装任何命令行工具！
+
+#### 浏览器部署（推荐，5 分钟）
+
 1. **Fork 本仓库**
 
-2. **创建 Workers KV 命名空间**
-   ```bash
-   # 安装并登录 Wrangler
-   npm install -g wrangler
-   wrangler login
-   
-   # 创建 KV 命名空间
-   wrangler kv:namespace create "VPS_KV"
-   ```
+2. **在 Cloudflare Dashboard 创建 KV 命名空间**
+   - 进入 **Workers & Pages** → **KV** → **Create namespace**
+   - 命名空间名称：`VPS_KV`
 
-3. **在 Cloudflare Pages 创建项目**
-   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
-   - 进入 **Workers & Pages** → **Create application** → **Pages**
-   - 连接到你的 GitHub 仓库
-   - 构建配置：
-     - **构建命令**: `npm run build`
-     - **构建输出目录**: `dist`
+3. **创建 Pages 项目并绑定 KV**
+   - **Workers & Pages** → **Create application** → **Pages**
+   - 连接 GitHub 仓库
+   - 构建设置：`npm run build` / `dist`
+   - ⚠️ **部署前**，在 **KV namespace bindings** 添加：
+     - Variable name: `VPS_KV`
+     - KV namespace: 选择刚创建的命名空间
+   - 环境变量：`API_TOKEN=your-secret-token`
+   - 点击 **Save and Deploy**
 
-4. **配置 KV 绑定和环境变量**
-   - 部署完成后，进入项目 **Settings** → **Functions**
-   - **KV namespace bindings**：添加绑定
-     - **Variable name**: `VPS_KV`
-     - **KV namespace**: 选择第2步创建的命名空间
-   - **Environment variables**：添加变量
-     ```
-     API_TOKEN=your-secret-token-here
-     ```
+4. **完成！** 访问分配的 `xxx.pages.dev` 域名
 
-5. **重新部署，完成！**
-   - 返回 **Deployments**，重新部署以应用 KV 绑定
-   - 访问你的 Pages 域名即可使用
+> 📖 **详细步骤**：[浏览器部署完整指南](./CLOUDFLARE_BROWSER_DEPLOY.md)（含截图）
 
-> 📖 **详细指南**：查看 [Cloudflare Pages 部署完整文档](./CLOUDFLARE_DEPLOY.md)
->
-> 💡 **优势**：使用 Workers KV 无需外部依赖，配置更简单！
+#### CLI 部署（高级用户）
+
+```bash
+# 1. 创建 KV 命名空间
+wrangler kv:namespace create "VPS_KV"
+
+# 2. 更新 wrangler.toml 中的 KV ID
+
+# 3. 部署
+wrangler pages deploy dist --project-name=avpsmonitor
+```
+
+> 📖 **CLI 详细指南**：[Cloudflare Pages CLI 部署](./CLOUDFLARE_DEPLOY.md)
+
+💡 **优势**：使用 Workers KV 无需外部依赖，完全 Cloudflare 原生！
 
 ### 方式三：本地开发
 

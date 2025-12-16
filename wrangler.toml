@@ -2,19 +2,35 @@ name = "avpsmonitor"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
-# Cloudflare Pages 配置
-# 部署命令: npx wrangler pages deploy dist --project-name=avpsmonitor
-
-# Workers KV 命名空间绑定
-# 需要先创建 KV 命名空间：
-# wrangler kv:namespace create "VPS_KV"
-# wrangler kv:namespace create "VPS_KV" --preview
+# ==========================================
+# ⚠️ 重要说明：本文件仅用于 CLI 部署
+# ==========================================
+# 
+# 如果你通过 Cloudflare Dashboard（浏览器）部署：
+#   - 本文件会被忽略
+#   - KV 绑定在 Dashboard 的 Settings → Functions 中配置
+#   - 不需要修改本文件
 #
-# 然后在下面填入创建时返回的 ID
+# 如果你通过 Wrangler CLI 部署：
+#   - 需要先创建 KV 命名空间
+#   - 将下面的 ID 替换为实际值
+#
+# ==========================================
+
+# Cloudflare Pages CLI 部署命令
+# npx wrangler pages deploy dist --project-name=avpsmonitor
+
+# Workers KV 命名空间绑定（仅 CLI 部署需要）
+# 
+# 创建命名空间：
+#   wrangler kv:namespace create "VPS_KV"
+#   wrangler kv:namespace create "VPS_KV" --preview
+#
+# 命令会返回 ID，填入下面：
 [[kv_namespaces]]
 binding = "VPS_KV"
 id = "YOUR_KV_NAMESPACE_ID"        # 生产环境 KV ID（需替换）
-preview_id = "YOUR_PREVIEW_KV_ID"   # 预览环境 KV ID（需替换）
+preview_id = "YOUR_PREVIEW_KV_ID"   # 预览环境 KV ID（可选）
 
 # 环境变量配置说明（在 Cloudflare Pages 仪表板中配置）:
 # - API_TOKEN: Agent 认证 Token（必需）

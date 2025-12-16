@@ -1,13 +1,25 @@
-# Cloudflare Pages 部署指南
+# Cloudflare Pages CLI 部署指南
 
-本文档详细说明如何将 VPS Monitor 部署到 Cloudflare Pages（使用 Workers KV 存储）。
+> 🔔 **部署方式选择**
+> 
+> - **新手用户**：推荐使用 [浏览器部署指南](./CLOUDFLARE_BROWSER_DEPLOY.md)（5 分钟，无需命令行）
+> - **高级用户**：继续阅读本文档，使用 Wrangler CLI 部署
+> 
+> **两种方式功能完全相同**，选择你熟悉的即可！
+
+---
+
+本文档详细说明如何通过 **Wrangler CLI** 将 VPS Monitor 部署到 Cloudflare Pages（使用 Workers KV 存储）。
 
 ## 前置准备
 
 1. **GitHub 账号** - 用于托管代码
 2. **Cloudflare 账号** - 用于部署 Pages 和 KV 存储
+3. **Node.js** - 安装 Wrangler CLI 需要
 
 > 💡 **优势**：使用 Cloudflare Workers KV，无需外部依赖，配置更简单！
+>
+> ⚠️ **重要提示**：如果你已经通过浏览器部署，无需执行本文档的命令！
 
 ## 第一步：创建 Workers KV 命名空间
 
