@@ -76,7 +76,39 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Zbun/avpsmonitor)
 
-### 方式二：本地开发
+### 方式二：部署到 Cloudflare Pages
+
+1. **Fork 本仓库**
+
+2. **创建 Upstash Redis 数据库**
+   - 登录 [Upstash](https://upstash.com/)
+   - 创建一个 Redis 数据库
+   - 记录 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`
+
+3. **在 Cloudflare Pages 创建项目**
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+   - 进入 **Workers & Pages** → **Create application** → **Pages**
+   - 连接到你的 GitHub 仓库
+   - 构建配置：
+     - **构建命令**: `npm run build`
+     - **构建输出目录**: `dist`
+     - **Root directory**: `/` (留空)
+
+4. **配置环境变量**
+   - 在项目设置中添加以下环境变量：
+   ```
+   API_TOKEN=your-secret-token-here
+   UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
+   UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+   ```
+
+5. **部署完成！**
+   - Cloudflare Pages 会自动识别 `/functions` 目录下的 API 函数
+   - 访问你的 Pages 域名即可使用
+
+> 📖 **详细指南**：查看 [Cloudflare Pages 部署完整文档](./CLOUDFLARE_DEPLOY.md)
+
+### 方式三：本地开发
 
 ```bash
 # 安装依赖
@@ -150,9 +182,11 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 
 ## 🏗️ 架构说明
 
+本项目同时支持 **Vercel** 和 **Cloudflare Pages** 两种部署方式：
+
 ```
 ┌─────────────┐         ┌──────────────────────────────────┐
-│   VPS 1     │         │          Vercel                  │
+│   VPS 1     │         │    Vercel / Cloudflare Pages     │
 │ ┌─────────┐ │  POST   │  ┌────────────┐    ┌──────────┐  │
 │ │  Agent  │─┼────────►│  │ /api/report│───►│  Redis   │  │
 │ └─────────┘ │         │  │  (上报API) │    │(Upstash) │  │
@@ -169,6 +203,10 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 └─────────────┘         │  └────────────┘                  │
                         └──────────────────────────────────┘
 ```
+
+**平台差异**：
+- **Vercel**: API 位于 `/api` 目录，使用 `ioredis` 连接 Redis
+- **Cloudflare Pages**: API 位于 `/functions` 目录，使用 `@upstash/redis` REST API
 
 ### 数据流程
 
@@ -191,6 +229,18 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 | `REDIS_URL` | 🔄 | Redis 连接地址（Marketplace 自动配置） | - |
 
 > 🔄 表示连接 Vercel Marketplace 的 Redis 后自动配置，无需手动设置
+
+### Cloudflare Pages 环境变量
+
+| 变量名 | 必填 | 说明 | 默认值 |
+|--------|------|------|--------|
+| `API_TOKEN` | ✅ | Agent 认证 Token | - |
+| `UPSTASH_REDIS_REST_URL` | ✅ | Upstash Redis REST API URL | - |
+| `UPSTASH_REDIS_REST_TOKEN` | ✅ | Upstash Redis REST API Token | - |
+| `VPS_SERVERS` | ❌ | 预配置服务器列表 | 见下方说明 |
+| `REFRESH_INTERVAL` | ❌ | 前端数据刷新间隔（毫秒） | `2000` |
+
+> 💡 **提示**：Cloudflare Pages 使用 Upstash Redis 的 REST API，需要手动在 [Upstash](https://upstash.com/) 创建数据库并获取 URL 和 Token
 
 ### VPS_SERVERS 服务器列表配置
 
@@ -236,14 +286,21 @@ VPS_SERVERS=hk-01:香港 CN2 GIA:HK:Hong Kong:2025-12-31:1:1t,jp-01:东京 Lite:
 
 ## 🛠️ 技术栈
 
+### 前端
 - **React 18** - UI 框架
 - **TypeScript 5** - 类型安全
 - **Vite 5** - 构建工具
 - **Tailwind CSS 3** - 样式框架
 - **Lucide React** - 图标库
-- **ioredis** - Redis 客户端
-- **Vercel Serverless** - 无服务器函数
-- **Vercel Marketplace Redis** - 数据存储
+
+### 后端 / Serverless
+- **Vercel Serverless Functions** - 使用 `ioredis` 连接 Redis
+- **Cloudflare Pages Functions** - 使用 `@upstash/redis` REST API
+- **Upstash Redis** - 数据存储（支持两种平台）
+
+### Agent
+- **Node.js** - 纯 JavaScript，零依赖
+- **Shell** - 轻量级安装脚本
 
 ## 📁 项目结构
 
@@ -252,6 +309,10 @@ avpsmonitor/
 ├── api/                  # Vercel Serverless 函数
 │   ├── nodes.ts          # GET  /api/nodes - 获取所有节点
 │   └── report.ts         # POST /api/report - Agent 数据上报
+├── functions/            # Cloudflare Pages Functions
+│   └── api/
+│       ├── nodes.ts      # GET  /api/nodes - 获取所有节点（CF 版本）
+│       └── report.ts     # POST /api/report - Agent 数据上报（CF 版本）
 ├── agent/                # VPS 监控 Agent
 │   ├── agent.js          # Agent 脚本（纯 Node.js，零依赖）
 │   ├── install.sh        # 一键安装脚本
@@ -268,10 +329,12 @@ avpsmonitor/
 │   ├── types/            # TypeScript 类型定义
 │   ├── App.tsx           # 主应用
 │   └── main.tsx          # 入口文件
-├── vercel.json           # Vercel 路由配置
-├── .env.example          # 环境变量示例
+├── vercel.json           # Vercel 配置
+├── wrangler.toml         # Cloudflare Pages 配置
 └── package.json
 ```
+
+> 💡 **说明**：`/api` 用于 Vercel，`/functions` 用于 Cloudflare Pages，两者功能完全一致
 
 ## 🌍 支持的国家/地区
 
@@ -289,6 +352,30 @@ avpsmonitor/
 
 > 更多国家代码遵循 [ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) 标准
 
+## ❓ 常见问题
+
+### 如何选择部署平台？
+
+| 特性 | Vercel | Cloudflare Pages |
+|------|--------|------------------|
+| **部署难度** | ⭐⭐⭐⭐⭐ 极简（Marketplace 一键配置 Redis） | ⭐⭐⭐⭐ 需手动创建 Upstash |
+| **全球访问速度** | ⭐⭐⭐⭐ 快 | ⭐⭐⭐⭐⭐ 更快（全球边缘网络） |
+| **国内访问** | ⭐⭐⭐ 一般 | ⭐⭐⭐⭐ 较好 |
+| **免费额度** | 100GB 流量/月 | 无限流量 |
+| **函数调用** | 100,000 次/月 | 100,000 次/天 |
+| **推荐场景** | 快速部署、简单配置 | 高流量、全球用户 |
+
+### 能否同时部署到两个平台？
+
+可以！两个平台可以共用同一个 Upstash Redis 数据库和 Agent，只需：
+1. 在两个平台使用相同的 `API_TOKEN` 和 Redis 配置
+2. Agent 的 `SERVER_URL` 指向任意一个部署地址
+3. 数据会实时同步到两个站点
+
+### Agent 需要修改吗？
+
+不需要！Agent 完全兼容两种部署方式，只需配置正确的 `SERVER_URL` 即可。
+
 ## 📝 License
 
 MIT License
@@ -303,4 +390,4 @@ MIT License
 
 ---
 
-Made with ❤️ | Powered by Vercel + Redis
+Made with ❤️ | Powered by Vercel / Cloudflare Pages + Upstash Redis

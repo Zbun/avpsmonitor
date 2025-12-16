@@ -1,0 +1,19 @@
+name = "avpsmonitor"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist"
+
+# Cloudflare Pages 配置
+# 部署命令: npx wrangler pages deploy dist --project-name=avpsmonitor
+
+# 环境变量配置说明（在 Cloudflare Pages 仪表板中配置）:
+# - API_TOKEN: Agent 认证 Token（必需）
+# - UPSTASH_REDIS_REST_URL: Upstash Redis REST API URL（必需）
+# - UPSTASH_REDIS_REST_TOKEN: Upstash Redis REST API Token（必需）
+# - VPS_SERVERS: 预配置服务器列表（可选）
+# - REFRESH_INTERVAL: 前端数据刷新间隔，单位毫秒（可选，默认 2000）
+
+# 注意：Cloudflare Pages Functions 会自动识别 /functions 目录下的文件
+# 无需额外配置路由，API 端点会自动映射：
+# - functions/api/nodes.ts -> /api/nodes
+# - functions/api/report.ts -> /api/report
+
