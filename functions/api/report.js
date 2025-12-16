@@ -1,5 +1,5 @@
-// 从环境变量获取 API Token
-const getApiToken = (env) => env.API_TOKEN || 'your-secret-token';
+// 从环境变量获取 API Token（使用 VPS_AUTH_TOKEN 避免与 Cloudflare 变量冲突）
+const getApiToken = (env) => env.VPS_AUTH_TOKEN || env.API_TOKEN || 'your-secret-token';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';

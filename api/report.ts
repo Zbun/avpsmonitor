@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Redis from 'ioredis';
 
-// 从环境变量获取 API Token
-const API_TOKEN = process.env.API_TOKEN || 'your-secret-token';
+// 从环境变量获取 API Token（VPS_AUTH_TOKEN 或 API_TOKEN）
+const API_TOKEN = process.env.VPS_AUTH_TOKEN || process.env.API_TOKEN || 'your-secret-token';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
