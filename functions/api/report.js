@@ -1,47 +1,33 @@
 // 从环境变量获取 API Token
-const getApiToken = (env: any) => env.API_TOKEN || 'your-secret-token';
+const getApiToken = (env) => env.API_TOKEN || 'your-secret-token';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
 const GEO_CACHE_PREFIX = 'vps:geo:';
-const NODES_LIST_KEY = 'vps:nodes:list'; // 存储所有节点 ID 的列表
+const NODES_LIST_KEY = 'vps:nodes:list';
 
-// IP 地理位置信息接口
-interface GeoInfo {
-  country: string;
-  countryCode: string;
-  city: string;
-  region: string;
-  isp: string;
-}
-
-// 查询 IP 地理位置（使用免费的 ip-api.com）
-async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
-  // 跳过内网 IP
+// 查询 IP 地理位置
+async function getGeoInfo(ip, kv) {
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') {
     return null;
   }
 
-  // 如果 KV 可用，先检查缓存
   if (kv) {
     try {
       const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
       const cached = await kv.get(cacheKey, 'json');
-      if (cached) {
-        return cached as GeoInfo;
-      }
+      if (cached) return cached;
     } catch (e) {
       console.warn('KV cache read failed:', e);
     }
   }
 
   try {
-    // 使用 ip-api.com 免费 API（限制：45次/分钟）
     const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city,isp`);
     const data = await response.json();
 
     if (data.status === 'success') {
-      const geoInfo: GeoInfo = {
+      const geoInfo = {
         country: data.country || '',
         countryCode: data.countryCode || '',
         city: data.city || '',
@@ -49,7 +35,6 @@ async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
         isp: data.isp || '',
       };
 
-      // 如果 KV 可用，缓存 24 小时
       if (kv) {
         try {
           const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
@@ -58,18 +43,34 @@ async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
           console.warn('KV cache write failed:', e);
         }
       }
-
       return geoInfo;
     }
   } catch (error) {
     console.error('Error fetching geo info:', error);
   }
-
   return null;
 }
 
-export async function onRequestPost(context: any) {
+export async function onRequest(context) {
   const { request, env } = context;
+
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-API-Token, Authorization',
+  };
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
 
   try {
     const API_TOKEN = getApiToken(env);
@@ -77,11 +78,11 @@ export async function onRequestPost(context: any) {
     // 验证 Token
     const token = request.headers.get('x-api-token') ||
       request.headers.get('authorization')?.replace('Bearer ', '');
-    
+
     if (token !== API_TOKEN) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -89,44 +90,40 @@ export async function onRequestPost(context: any) {
     if (!env.VPS_KV) {
       return new Response(JSON.stringify({
         error: 'Storage not available',
-        message: 'Workers KV is not configured. Please bind a KV namespace named VPS_KV.'
+        message: 'Workers KV is not configured. Please bind a KV namespace named VPS_KV.',
       }), {
         status: 503,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
     const kv = env.VPS_KV;
-
     const body = await request.json();
     const { nodeId, ipAddress, ...data } = body;
 
     if (!nodeId) {
       return new Response(JSON.stringify({ error: 'Missing nodeId' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
     // 获取 IP 地理位置信息
-    let geoInfo: GeoInfo | null = null;
+    let geoInfo = null;
     let location = data.location;
     let countryCode = data.countryCode;
     let name = data.name;
 
-    // 如果上报了 IP 且没有手动指定位置，则自动获取
     if (ipAddress && (!location || location === 'Unknown' || !countryCode)) {
       geoInfo = await getGeoInfo(ipAddress, kv);
 
       if (geoInfo) {
-        // 自动填充位置信息
         if (!countryCode || countryCode === 'US') {
           countryCode = geoInfo.countryCode;
         }
         if (!location || location === 'Unknown') {
           location = geoInfo.city || geoInfo.region || geoInfo.country;
         }
-        // 如果没有设置名称，使用"城市 ISP"作为默认名称
         if (!name || name === nodeId) {
           name = geoInfo.city
             ? `${geoInfo.city} ${geoInfo.isp?.split(' ')[0] || ''}`.trim()
@@ -135,33 +132,27 @@ export async function onRequestPost(context: any) {
       }
     }
 
-    // ===== 月流量统计逻辑 =====
+    // 月流量统计逻辑
     const trafficResetDay = data.trafficResetDay || 1;
     const now = new Date();
     const currentDay = now.getDate();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // 计算当前计费周期的开始时间
-    let cycleStartDate: Date;
+    let cycleStartDate;
     if (currentDay >= trafficResetDay) {
-      // 当前日期 >= 重置日，周期从本月重置日开始
       cycleStartDate = new Date(currentYear, currentMonth, trafficResetDay);
     } else {
-      // 当前日期 < 重置日，周期从上月重置日开始
       cycleStartDate = new Date(currentYear, currentMonth - 1, trafficResetDay);
     }
     const cycleStartKey = `${cycleStartDate.getFullYear()}-${cycleStartDate.getMonth() + 1}-${cycleStartDate.getDate()}`;
 
-    // 获取或创建月流量基准数据
     const trafficKey = `vps:traffic:${nodeId}`;
-    let trafficData: { cycleStart: string; baseUpload: number; baseDownload: number } | null = null;
+    let trafficData = null;
 
     try {
       const rawTraffic = await kv.get(trafficKey, 'json');
-      if (rawTraffic) {
-        trafficData = rawTraffic as any;
-      }
+      if (rawTraffic) trafficData = rawTraffic;
     } catch (e) {
       console.warn('Error reading traffic data:', e);
     }
@@ -169,24 +160,19 @@ export async function onRequestPost(context: any) {
     const totalUpload = data.network?.totalUpload || 0;
     const totalDownload = data.network?.totalDownload || 0;
 
-    // 判断是否需要重置基准（新周期或首次连接）
     if (!trafficData || trafficData.cycleStart !== cycleStartKey) {
-      // 新周期或首次连接，记录当前值作为基准
       trafficData = {
         cycleStart: cycleStartKey,
         baseUpload: totalUpload,
         baseDownload: totalDownload,
       };
-      // 保存基准数据（设置较长过期时间，如 45 天）
       await kv.put(trafficKey, JSON.stringify(trafficData), { expirationTtl: 45 * 24 * 60 * 60 });
     }
 
-    // 计算本月已用流量
     const monthlyUpload = Math.max(0, totalUpload - trafficData.baseUpload);
     const monthlyDownload = Math.max(0, totalDownload - trafficData.baseDownload);
     const monthlyUsed = monthlyUpload + monthlyDownload;
 
-    // 存储节点数据到 Redis，设置 20 秒过期（节点超时即自动清除）
     const nodeData = {
       id: nodeId,
       ipAddress,
@@ -196,20 +182,18 @@ export async function onRequestPost(context: any) {
       countryCode: countryCode || 'US',
       lastUpdate: Date.now(),
       status: 'online',
-      // 覆盖月流量数据
       network: {
         ...data.network,
         monthlyUsed: monthlyUsed,
       },
-      // 保存延迟测试数据（如果 Agent 上报了）
       latency: data.latency || null,
     };
 
-    // 存储节点数据到 KV，设置 20 秒过期（结合 4 秒上报间隔，给 5 次容错机会）
+    // 存储节点数据到 KV
     await kv.put(`${KV_PREFIX}${nodeId}`, JSON.stringify(nodeData), { expirationTtl: 20 });
 
-    // 维护节点列表（存储为 JSON 数组）
-    let nodeList: string[] = [];
+    // 维护节点列表
+    let nodeList = [];
     try {
       const rawList = await kv.get(NODES_LIST_KEY, 'json');
       if (rawList && Array.isArray(rawList)) {
@@ -221,39 +205,22 @@ export async function onRequestPost(context: any) {
 
     if (!nodeList.includes(nodeId)) {
       nodeList.push(nodeId);
-      // 节点列表永久保存（或设置很长的过期时间）
       await kv.put(NODES_LIST_KEY, JSON.stringify(nodeList), { expirationTtl: 365 * 24 * 60 * 60 });
     }
 
     return new Response(JSON.stringify({
       success: true,
-      geo: geoInfo ? {
-        location,
-        countryCode,
-        name
-      } : null
+      geo: geoInfo ? { location, countryCode, name } : null,
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (error) {
     console.error('Error processing report:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   }
-}
-
-// 处理 OPTIONS 请求 (CORS preflight)
-export async function onRequestOptions() {
-  return new Response(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-API-Token, Authorization'
-    }
-  });
 }
 
