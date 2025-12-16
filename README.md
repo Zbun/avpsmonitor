@@ -76,14 +76,19 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Zbun/avpsmonitor)
 
-### 方式二：部署到 Cloudflare Pages
+### 方式二：部署到 Cloudflare Pages（使用 Workers KV）
 
 1. **Fork 本仓库**
 
-2. **创建 Upstash Redis 数据库**
-   - 登录 [Upstash](https://upstash.com/)
-   - 创建一个 Redis 数据库
-   - 记录 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`
+2. **创建 Workers KV 命名空间**
+   ```bash
+   # 安装并登录 Wrangler
+   npm install -g wrangler
+   wrangler login
+   
+   # 创建 KV 命名空间
+   wrangler kv:namespace create "VPS_KV"
+   ```
 
 3. **在 Cloudflare Pages 创建项目**
    - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
@@ -92,21 +97,24 @@
    - 构建配置：
      - **构建命令**: `npm run build`
      - **构建输出目录**: `dist`
-     - **Root directory**: `/` (留空)
 
-4. **配置环境变量**
-   - 在项目设置中添加以下环境变量：
-   ```
-   API_TOKEN=your-secret-token-here
-   UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
-   UPSTASH_REDIS_REST_TOKEN=your-upstash-token
-   ```
+4. **配置 KV 绑定和环境变量**
+   - 部署完成后，进入项目 **Settings** → **Functions**
+   - **KV namespace bindings**：添加绑定
+     - **Variable name**: `VPS_KV`
+     - **KV namespace**: 选择第2步创建的命名空间
+   - **Environment variables**：添加变量
+     ```
+     API_TOKEN=your-secret-token-here
+     ```
 
-5. **部署完成！**
-   - Cloudflare Pages 会自动识别 `/functions` 目录下的 API 函数
+5. **重新部署，完成！**
+   - 返回 **Deployments**，重新部署以应用 KV 绑定
    - 访问你的 Pages 域名即可使用
 
 > 📖 **详细指南**：查看 [Cloudflare Pages 部署完整文档](./CLOUDFLARE_DEPLOY.md)
+>
+> 💡 **优势**：使用 Workers KV 无需外部依赖，配置更简单！
 
 ### 方式三：本地开发
 
@@ -206,7 +214,7 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 
 **平台差异**：
 - **Vercel**: API 位于 `/api` 目录，使用 `ioredis` 连接 Redis
-- **Cloudflare Pages**: API 位于 `/functions` 目录，使用 `@upstash/redis` REST API
+- **Cloudflare Pages**: API 位于 `/functions` 目录，使用 Workers KV 存储
 
 ### 数据流程
 
@@ -235,12 +243,18 @@ rm -rf /opt/vps-agent /etc/systemd/system/vps-agent.service
 | 变量名 | 必填 | 说明 | 默认值 |
 |--------|------|------|--------|
 | `API_TOKEN` | ✅ | Agent 认证 Token | - |
-| `UPSTASH_REDIS_REST_URL` | ✅ | Upstash Redis REST API URL | - |
-| `UPSTASH_REDIS_REST_TOKEN` | ✅ | Upstash Redis REST API Token | - |
 | `VPS_SERVERS` | ❌ | 预配置服务器列表 | 见下方说明 |
 | `REFRESH_INTERVAL` | ❌ | 前端数据刷新间隔（毫秒） | `2000` |
 
-> 💡 **提示**：Cloudflare Pages 使用 Upstash Redis 的 REST API，需要手动在 [Upstash](https://upstash.com/) 创建数据库并获取 URL 和 Token
+### Cloudflare Pages KV 绑定
+
+| 绑定名称 | 必填 | 说明 |
+|---------|------|------|
+| `VPS_KV` | ✅ | Workers KV 命名空间，用于存储监控数据 |
+
+> 💡 **提示**：Cloudflare Pages 使用 Workers KV 存储数据，无需外部依赖！
+> 
+> ⚠️ **重要**：KV 免费额度写入为 1,000 次/天，建议将 Agent 上报间隔调整为 10 秒（`INTERVAL=10000`）
 
 ### VPS_SERVERS 服务器列表配置
 
@@ -294,9 +308,11 @@ VPS_SERVERS=hk-01:香港 CN2 GIA:HK:Hong Kong:2025-12-31:1:1t,jp-01:东京 Lite:
 - **Lucide React** - 图标库
 
 ### 后端 / Serverless
-- **Vercel Serverless Functions** - 使用 `ioredis` 连接 Redis
-- **Cloudflare Pages Functions** - 使用 `@upstash/redis` REST API
-- **Upstash Redis** - 数据存储（支持两种平台）
+- **Vercel Serverless Functions** - 使用 `ioredis` 连接 Upstash Redis
+- **Cloudflare Pages Functions** - 使用 Workers KV 存储
+- **存储方案**：
+  - Vercel: Upstash Redis（通过 Marketplace 自动配置）
+  - Cloudflare: Workers KV（原生，无需外部依赖）
 
 ### Agent
 - **Node.js** - 纯 JavaScript，零依赖
@@ -358,19 +374,21 @@ avpsmonitor/
 
 | 特性 | Vercel | Cloudflare Pages |
 |------|--------|------------------|
-| **部署难度** | ⭐⭐⭐⭐⭐ 极简（Marketplace 一键配置 Redis） | ⭐⭐⭐⭐ 需手动创建 Upstash |
+| **部署难度** | ⭐⭐⭐⭐⭐ 极简（Marketplace 一键配置） | ⭐⭐⭐⭐⭐ 极简（KV 原生支持） |
 | **全球访问速度** | ⭐⭐⭐⭐ 快 | ⭐⭐⭐⭐⭐ 更快（全球边缘网络） |
 | **国内访问** | ⭐⭐⭐ 一般 | ⭐⭐⭐⭐ 较好 |
 | **免费额度** | 100GB 流量/月 | 无限流量 |
 | **函数调用** | 100,000 次/月 | 100,000 次/天 |
-| **推荐场景** | 快速部署、简单配置 | 高流量、全球用户 |
+| **存储方案** | Upstash Redis | Workers KV |
+| **外部依赖** | 需要 Upstash 账号 | 无需外部依赖 |
+| **推荐场景** | 快速部署、中大规模 | 小规模、无外部依赖需求 |
 
 ### 能否同时部署到两个平台？
 
-可以！两个平台可以共用同一个 Upstash Redis 数据库和 Agent，只需：
-1. 在两个平台使用相同的 `API_TOKEN` 和 Redis 配置
-2. Agent 的 `SERVER_URL` 指向任意一个部署地址
-3. 数据会实时同步到两个站点
+**可以，但数据不共享**：
+- 两个平台使用不同的存储系统（Redis vs KV）
+- Agent 只能上报到一个地址
+- 如需同时监控，可以部署两套 Agent（不同 `NODE_ID`）
 
 ### Agent 需要修改吗？
 
@@ -390,4 +408,4 @@ MIT License
 
 ---
 
-Made with ❤️ | Powered by Vercel / Cloudflare Pages + Upstash Redis
+Made with ❤️ | Powered by Vercel / Cloudflare Pages

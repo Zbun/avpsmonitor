@@ -1,11 +1,10 @@
-import { Redis } from '@upstash/redis/cloudflare';
-
 // 从环境变量获取 API Token
 const getApiToken = (env: any) => env.API_TOKEN || 'your-secret-token';
 
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
 const GEO_CACHE_PREFIX = 'vps:geo:';
+const NODES_LIST_KEY = 'vps:nodes:list'; // 存储所有节点 ID 的列表
 
 // IP 地理位置信息接口
 interface GeoInfo {
@@ -17,22 +16,22 @@ interface GeoInfo {
 }
 
 // 查询 IP 地理位置（使用免费的 ip-api.com）
-async function getGeoInfo(ip: string, redis: Redis | null): Promise<GeoInfo | null> {
+async function getGeoInfo(ip: string, kv: any): Promise<GeoInfo | null> {
   // 跳过内网 IP
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') {
     return null;
   }
 
-  // 如果 Redis 可用，先检查缓存
-  if (redis) {
+  // 如果 KV 可用，先检查缓存
+  if (kv) {
     try {
       const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
-      const cached = await redis.get(cacheKey);
+      const cached = await kv.get(cacheKey, 'json');
       if (cached) {
         return cached as GeoInfo;
       }
     } catch (e) {
-      console.warn('Redis cache read failed:', e);
+      console.warn('KV cache read failed:', e);
     }
   }
 
@@ -50,13 +49,13 @@ async function getGeoInfo(ip: string, redis: Redis | null): Promise<GeoInfo | nu
         isp: data.isp || '',
       };
 
-      // 如果 Redis 可用，缓存 24 小时
-      if (redis) {
+      // 如果 KV 可用，缓存 24 小时
+      if (kv) {
         try {
           const cacheKey = `${GEO_CACHE_PREFIX}${ip}`;
-          await redis.setex(cacheKey, 86400, JSON.stringify(geoInfo));
+          await kv.put(cacheKey, JSON.stringify(geoInfo), { expirationTtl: 86400 });
         } catch (e) {
-          console.warn('Redis cache write failed:', e);
+          console.warn('KV cache write failed:', e);
         }
       }
 
@@ -86,21 +85,18 @@ export async function onRequestPost(context: any) {
       });
     }
 
-    // 获取 Redis 连接
-    if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
+    // 检查 KV 命名空间
+    if (!env.VPS_KV) {
       return new Response(JSON.stringify({
         error: 'Storage not available',
-        message: 'Redis is not configured. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
+        message: 'Workers KV is not configured. Please bind a KV namespace named VPS_KV.'
       }), {
         status: 503,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const redis = new Redis({
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN,
-    });
+    const kv = env.VPS_KV;
 
     const body = await request.json();
     const { nodeId, ipAddress, ...data } = body;
@@ -120,7 +116,7 @@ export async function onRequestPost(context: any) {
 
     // 如果上报了 IP 且没有手动指定位置，则自动获取
     if (ipAddress && (!location || location === 'Unknown' || !countryCode)) {
-      geoInfo = await getGeoInfo(ipAddress, redis);
+      geoInfo = await getGeoInfo(ipAddress, kv);
 
       if (geoInfo) {
         // 自动填充位置信息
@@ -162,7 +158,7 @@ export async function onRequestPost(context: any) {
     let trafficData: { cycleStart: string; baseUpload: number; baseDownload: number } | null = null;
 
     try {
-      const rawTraffic = await redis.get(trafficKey);
+      const rawTraffic = await kv.get(trafficKey, 'json');
       if (rawTraffic) {
         trafficData = rawTraffic as any;
       }
@@ -182,7 +178,7 @@ export async function onRequestPost(context: any) {
         baseDownload: totalDownload,
       };
       // 保存基准数据（设置较长过期时间，如 45 天）
-      await redis.setex(trafficKey, 45 * 24 * 60 * 60, JSON.stringify(trafficData));
+      await kv.put(trafficKey, JSON.stringify(trafficData), { expirationTtl: 45 * 24 * 60 * 60 });
     }
 
     // 计算本月已用流量
@@ -209,13 +205,24 @@ export async function onRequestPost(context: any) {
       latency: data.latency || null,
     };
 
-    // 存储节点数据到 Redis，设置 20 秒过期（结合 4 秒上报间隔，给 5 次容错机会）
-    await redis.setex(`${KV_PREFIX}${nodeId}`, 20, JSON.stringify(nodeData));
+    // 存储节点数据到 KV，设置 20 秒过期（结合 4 秒上报间隔，给 5 次容错机会）
+    await kv.put(`${KV_PREFIX}${nodeId}`, JSON.stringify(nodeData), { expirationTtl: 20 });
 
-    // 维护节点列表
-    const nodeList = await redis.smembers('vps:nodes') || [];
+    // 维护节点列表（存储为 JSON 数组）
+    let nodeList: string[] = [];
+    try {
+      const rawList = await kv.get(NODES_LIST_KEY, 'json');
+      if (rawList && Array.isArray(rawList)) {
+        nodeList = rawList;
+      }
+    } catch (e) {
+      console.warn('Error reading nodes list:', e);
+    }
+
     if (!nodeList.includes(nodeId)) {
-      await redis.sadd('vps:nodes', nodeId);
+      nodeList.push(nodeId);
+      // 节点列表永久保存（或设置很长的过期时间）
+      await kv.put(NODES_LIST_KEY, JSON.stringify(nodeList), { expirationTtl: 365 * 24 * 60 * 60 });
     }
 
     return new Response(JSON.stringify({

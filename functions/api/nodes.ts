@@ -1,7 +1,6 @@
-import { Redis } from '@upstash/redis/cloudflare';
-
 // KV 存储的 key 前缀
 const KV_PREFIX = 'vps:node:';
+const NODES_LIST_KEY = 'vps:nodes:list'; // 存储所有节点 ID 的列表
 
 // 默认值
 const DEFAULTS = {
@@ -103,8 +102,8 @@ export async function onRequestGet(context: any) {
     const preConfigured = getPreConfiguredServers(env);
     const now = Date.now();
 
-    // 检查 Redis 配置
-    if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
+    // 检查 KV 命名空间
+    if (!env.VPS_KV) {
       const placeholderNodes = Array.from(preConfigured.entries()).map(([id, config]) =>
         generatePlaceholderNode(id, config)
       );
@@ -114,7 +113,7 @@ export async function onRequestGet(context: any) {
         timestamp: now,
         count: placeholderNodes.length,
         kvAvailable: false,
-        message: 'Redis not configured. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.',
+        message: 'Workers KV not configured. Please bind a KV namespace named VPS_KV.',
       }), {
         status: 200,
         headers: {
@@ -124,26 +123,31 @@ export async function onRequestGet(context: any) {
       });
     }
 
-    const redis = new Redis({
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN,
-    });
+    const kv = env.VPS_KV;
 
-    // 获取所有节点 ID
+    // 获取所有节点 ID（从 JSON 数组）
     let nodeIds: string[] = [];
     try {
-      nodeIds = await redis.smembers('vps:nodes') || [];
+      const rawList = await kv.get(NODES_LIST_KEY, 'json');
+      if (rawList && Array.isArray(rawList)) {
+        nodeIds = rawList;
+      }
     } catch (e) {
       console.warn('Error fetching node list:', e);
     }
 
     // 批量获取所有节点数据
-    const pipeline = redis.pipeline();
-    nodeIds.forEach((nodeId: string) => {
-      pipeline.get(`${KV_PREFIX}${nodeId}`);
-    });
-
-    const results = await pipeline.exec();
+    const results = await Promise.all(
+      nodeIds.map(async (nodeId: string) => {
+        try {
+          const data = await kv.get(`${KV_PREFIX}${nodeId}`, 'json');
+          return data;
+        } catch (e) {
+          console.warn(`Error fetching node ${nodeId}:`, e);
+          return null;
+        }
+      })
+    );
 
     // 简化操作系统名称（如 "Linux 5.15.0-91-generic" -> "Debian" 或 "Ubuntu"）
     const simplifyOS = (os: string): string => {
@@ -167,14 +171,11 @@ export async function onRequestGet(context: any) {
     // 处理每个节点的数据
     const nodes = nodeIds.map((nodeId: string, index: number) => {
       try {
-        const rawData = results?.[index];
-        if (!rawData) {
+        const nodeData = results?.[index];
+        if (!nodeData) {
           // 节点数据过期
           return null;
         }
-
-        // 解析 JSON 数据
-        const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
         // 检查是否超时（15秒无更新视为离线，给3-4次上报容错）
         const isOnline = (now - nodeData.lastUpdate) < 15000;
