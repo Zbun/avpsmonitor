@@ -15,52 +15,52 @@
 
 ---
 
-## 🚀 部署步骤（3 步完成）
+## 🚀 部署步骤（超简单，3 步）
 
-### 第 1 步：创建 KV 存储
+### 第 1 步：Fork 仓库
+
+点击右上角 **Fork** 按钮，Fork 到你的 GitHub 账号。
+
+### 第 2 步：部署到 Cloudflare
 
 1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. 进入 **Workers & Pages** → **KV**
-3. 点击 **Create a namespace**
-4. 输入名称：`VPS_KV`
-5. **记录 KV 的 ID**（类似 `abc123def456...`）
+2. **Workers & Pages** → **Create** → **Connect to Git**
+3. 选择你 Fork 的仓库
+4. 配置构建：
+   - 构建命令：`npm run build`
+   - 部署命令：`npx wrangler deploy`
+5. 点击 **Deploy**
 
-### 第 2 步：部署 Worker
+### 第 3 步：配置变量和 KV（部署完成后）
 
-1. 进入 **Workers & Pages** → **Create**
-2. 选择 **Import a repository**（导入仓库）
-3. 连接你 Fork 的仓库
-4. 配置：
+部署完成后，进入项目 **Settings**：
 
-| 设置 | 值 |
-|-----|---|
-| 项目名称 | `avpsmonitor` |
-| 构建命令 | `npm run build` |
-| 部署命令 | `npx wrangler deploy` |
+**A. 创建并绑定 KV**
+1. 打开新标签页，进入 **Workers & Pages** → **KV**
+2. **Create namespace**，名称随意（如 `VPS_KV`）
+3. 回到项目 Settings → **Variables**
+4. 找到 **KV Namespace Bindings** → **Add binding**
+   - Variable name: `VPS_KV`
+   - KV namespace: 选择刚创建的命名空间
+   - Environment: 勾选 **Production**
+5. 点击 **Save**
 
-5. 点击 **部署**
+**B. 添加环境变量**
 
-### 第 3 步：配置变量和 KV
+在同一页面，找到 **Environment Variables** → **Add variable**：
 
-部署完成后，进入项目 **设置**：
+| 变量名 | 值 | Environment |
+|--------|---|------------|
+| `API_TOKEN` | `your-password` | Production ✓ |
+| `VPS_AUTH_TOKEN` | `your-password` | Production ✓ |
 
-**1. 添加环境变量：**
+> 💡 两个变量的值相同，都填你的密码
 
-| 变量名 | 值 |
-|--------|---|
-| `VPS_AUTH_TOKEN` | `your-secret-password` |
+**C. 重新部署**
 
-**2. 绑定 KV：**
+返回 **Deployments**，点击 **Retry deployment**。
 
-找到 **KV 命名空间绑定**：
-
-| 变量名 | KV 命名空间 |
-|--------|------------|
-| `VPS_KV` | 选择第 1 步创建的 KV |
-
-**3. 重新部署**
-
-返回部署页面，点击 **重试部署**。
+**完成！** 访问你的域名，应该能看到监控面板。
 
 ---
 

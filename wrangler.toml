@@ -6,7 +6,26 @@ compatibility_date = "2024-12-01"
 [assets]
 directory = "./dist"
 
-# KV 绑定在 Cloudflare Dashboard 中配置，不在这里配置
-# 部署后，在 Settings → Variables → KV Namespace Bindings 中添加：
-# 变量名: VPS_KV
-# 命名空间: 选择你创建的 KV
+# ==========================================
+# 环境变量和 KV 在 Cloudflare Dashboard 中配置
+# ==========================================
+# 
+# Fork 后，在 Cloudflare Dashboard 中配置：
+#
+# 1. 创建 KV 命名空间
+#    Workers & Pages → KV → Create namespace
+#
+# 2. 部署后，在项目 Settings 中配置：
+#    
+#    【环境变量】Settings → Variables → Add variable:
+#      - API_TOKEN = your-secret-password
+#      - VPS_AUTH_TOKEN = your-secret-password
+#    
+#    【KV 绑定】Settings → Variables → KV Namespace Bindings → Add binding:
+#      - Variable name: VPS_KV
+#      - KV namespace: 选择你创建的命名空间
+#      - Environment: Production (勾选)
+#
+# 3. 配置完成后，重新部署即可生效
+#
+# ==========================================
