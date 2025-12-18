@@ -19,8 +19,8 @@ function parseTrafficSize(value) {
   if (!match) return DEFAULTS.monthlyTotal;
   const num = parseFloat(match[1]);
   const unit = (match[2] || 'G').toUpperCase();
-  return unit.startsWith('T') 
-    ? num * 1024 * 1024 * 1024 * 1024 
+  return unit.startsWith('T')
+    ? num * 1024 * 1024 * 1024 * 1024
     : num * 1024 * 1024 * 1024;
 }
 
@@ -76,14 +76,14 @@ function simplifyOS(os) {
 
 async function getGeoInfo(ip, kv) {
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') return null;
-  
+
   if (kv) {
     try {
       const cached = await kv.get(`${GEO_CACHE_PREFIX}${ip}`, 'json');
       if (cached) return cached;
-    } catch (e) {}
+    } catch (e) { }
   }
-  
+
   try {
     const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city,isp`);
     const data = await res.json();
@@ -93,7 +93,7 @@ async function getGeoInfo(ip, kv) {
         city: data.city || '', region: data.regionName || '', isp: data.isp || '',
       };
       if (kv) {
-        try { await kv.put(`${GEO_CACHE_PREFIX}${ip}`, JSON.stringify(geoInfo), { expirationTtl: 86400 }); } catch (e) {}
+        try { await kv.put(`${GEO_CACHE_PREFIX}${ip}`, JSON.stringify(geoInfo), { expirationTtl: 86400 }); } catch (e) { }
       }
       return geoInfo;
     }
@@ -117,7 +117,7 @@ async function handleNodes(env) {
   try {
     const list = await kv.get(NODES_LIST_KEY, 'json');
     if (Array.isArray(list)) nodeIds = list;
-  } catch (e) {}
+  } catch (e) { }
 
   const results = await Promise.all(nodeIds.map(id => kv.get(`${KV_PREFIX}${id}`, 'json').catch(() => null)));
 
@@ -166,7 +166,7 @@ async function handleNodes(env) {
 async function handleReport(request, env) {
   const token = request.headers.get('x-api-token') || request.headers.get('authorization')?.replace('Bearer ', '');
   const authToken = env.VPS_AUTH_TOKEN || env.API_TOKEN;
-  
+
   if (!authToken || token !== authToken) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
@@ -201,7 +201,7 @@ async function handleReport(request, env) {
     ? new Date(now.getFullYear(), now.getMonth(), resetDay)
     : new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
   const cycleKey = `${cycleStart.getFullYear()}-${cycleStart.getMonth() + 1}-${cycleStart.getDate()}`;
-  
+
   const trafficKey = `vps:traffic:${nodeId}`;
   let trafficData = await kv.get(trafficKey, 'json').catch(() => null);
   const totalUp = data.network?.totalUpload || 0, totalDown = data.network?.totalDownload || 0;
@@ -263,25 +263,43 @@ function corsResponse() {
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname;
+    try {
+      const url = new URL(request.url);
+      const path = url.pathname;
 
-    // CORS preflight
-    if (request.method === 'OPTIONS') {
-      return corsResponse();
+      // CORS preflight
+      if (request.method === 'OPTIONS') {
+        return corsResponse();
+      }
+
+      // API 路由
+      if (path === '/api/nodes' && request.method === 'GET') {
+        return handleNodes(env);
+      }
+
+      if (path === '/api/report' && request.method === 'POST') {
+        return handleReport(request, env);
+      }
+
+      // 静态资源由 assets 自动处理
+      if (env.ASSETS) {
+        return env.ASSETS.fetch(request);
+      }
+
+      // 如果没有 ASSETS，返回 404
+      return new Response('Not Found', { status: 404 });
+    } catch (error) {
+      // 捕获所有错误，返回详细信息
+      console.error('Worker error:', error);
+      return new Response(JSON.stringify({
+        error: 'Internal Server Error',
+        message: error.message,
+        stack: error.stack
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
-
-    // API 路由
-    if (path === '/api/nodes' && request.method === 'GET') {
-      return handleNodes(env);
-    }
-
-    if (path === '/api/report' && request.method === 'POST') {
-      return handleReport(request, env);
-    }
-
-    // 静态资源由 assets 自动处理，这里返回 null 让 Cloudflare 处理
-    return env.ASSETS.fetch(request);
   },
 };
 
