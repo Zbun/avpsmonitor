@@ -93,6 +93,14 @@ function simplifyOS(os) {
   return os.split(' ')[0] || 'Unknown';
 }
 
+// IPv4 脱敏：1.2.3.4 -> 1.***.4
+function maskIPv4(ip) {
+  if (!ip || ip === '-') return ip;
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null; // 非 IPv4 返回 null
+  return `${parts[0]}.***.${parts[3]}`;
+}
+
 async function getGeoInfo(ip, db) {
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') return null;
 
@@ -129,6 +137,7 @@ async function getGeoInfo(ip, db) {
 
 async function handleNodes(env) {
   const preConfigured = getPreConfiguredServers(env);
+  const configOrder = Array.from(preConfigured.keys()); // 保持配置顺序
   const now = Date.now();
   const db = env.VPS_DB;
 
@@ -141,31 +150,41 @@ async function handleNodes(env) {
     await initDB(db);
   } catch (e) { }
 
-  let rows = [];
+  // 获取数据库中的节点数据
+  const dbNodes = new Map();
   try {
     const result = await db.prepare('SELECT id, data, updated_at FROM nodes').all();
-    rows = result.results || [];
+    for (const row of (result.results || [])) {
+      dbNodes.set(row.id, { data: JSON.parse(row.data), updated_at: row.updated_at });
+    }
   } catch (e) { }
 
-  const nodes = rows.map(row => {
-    const nodeData = JSON.parse(row.data);
-    const lastUpdate = row.updated_at;
+  // 按 VPS_SERVERS 顺序构建节点列表
+  const allNodes = [];
+  const processedIds = new Set();
 
-    const isOnline = (now - lastUpdate) < 15000;
-    if ((now - lastUpdate) >= 60000) {
-      preConfigured.delete(row.id);
-      return null;
+  // 先按配置顺序处理
+  for (const nodeId of configOrder) {
+    const preConfig = preConfigured.get(nodeId);
+    const dbNode = dbNodes.get(nodeId);
+    processedIds.add(nodeId);
+
+    if (!dbNode || (now - dbNode.updated_at) >= 60000) {
+      // 无数据或过期超过60秒，显示占位
+      allNodes.push(generatePlaceholderNode(nodeId, preConfig));
+      continue;
     }
 
-    const preConfig = preConfigured.get(row.id);
-    preConfigured.delete(row.id);
+    const nodeData = dbNode.data;
+    const isOnline = (now - dbNode.updated_at) < 15000;
     const network = nodeData.network || {};
 
-    return {
+    allNodes.push({
       ...nodeData,
-      name: preConfig?.name || nodeData.name || row.id,
+      name: preConfig?.name || nodeData.name || nodeId,
       countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
       location: preConfig?.location || nodeData.location || 'Unknown',
+      expireDate: preConfig?.expireDate || nodeData.expireDate || '',
       status: isOnline ? 'online' : 'offline',
       os: simplifyOS(nodeData.os),
       cpu: { ...nodeData.cpu, usage: isOnline ? (nodeData.cpu?.usage || 0) : 0 },
@@ -176,12 +195,34 @@ async function handleNodes(env) {
         currentUpload: isOnline ? (network.currentUpload || 0) : 0,
         currentDownload: isOnline ? (network.currentDownload || 0) : 0,
         monthlyTotal: preConfig?.monthlyTotal || network.monthlyTotal || DEFAULTS.monthlyTotal,
+        resetDay: preConfig?.resetDay || network.resetDay || DEFAULTS.resetDay,
       },
-    };
-  }).filter(Boolean);
+    });
+  }
 
-  const remaining = Array.from(preConfigured.entries()).map(([id, c]) => generatePlaceholderNode(id, c));
-  const allNodes = [...nodes, ...remaining];
+  // 处理不在配置中但在数据库中的节点（追加到末尾）
+  for (const [nodeId, dbNode] of dbNodes) {
+    if (processedIds.has(nodeId)) continue;
+    if ((now - dbNode.updated_at) >= 60000) continue;
+
+    const nodeData = dbNode.data;
+    const isOnline = (now - dbNode.updated_at) < 15000;
+    const network = nodeData.network || {};
+
+    allNodes.push({
+      ...nodeData,
+      status: isOnline ? 'online' : 'offline',
+      os: simplifyOS(nodeData.os),
+      cpu: { ...nodeData.cpu, usage: isOnline ? (nodeData.cpu?.usage || 0) : 0 },
+      memory: { ...nodeData.memory, usage: isOnline ? (nodeData.memory?.usage || 0) : 0 },
+      disk: { ...nodeData.disk, usage: isOnline ? (nodeData.disk?.usage || 0) : 0 },
+      network: {
+        ...network,
+        currentUpload: isOnline ? (network.currentUpload || 0) : 0,
+        currentDownload: isOnline ? (network.currentDownload || 0) : 0,
+      },
+    });
+  }
 
   return jsonResponse({
     nodes: allNodes, timestamp: now, count: allNodes.length, d1Available: true,
@@ -193,7 +234,7 @@ async function handleReport(request, env) {
   try {
     const token = request.headers.get('x-api-token') || request.headers.get('authorization')?.replace('Bearer ', '');
     const authToken = env.VPS_AUTH_TOKEN || env.API_TOKEN;
-    
+
     if (!authToken || token !== authToken) {
       return jsonResponse({ error: 'Unauthorized', debug: { hasToken: !!token, hasAuthToken: !!authToken } }, 401);
     }
@@ -249,9 +290,15 @@ async function handleReport(request, env) {
 
     const monthlyUsed = Math.max(0, totalUp - trafficData.base_upload) + Math.max(0, totalDown - trafficData.base_download);
 
+    // IP 脱敏处理：IPv4 只保留首尾，IPv6 不存储
+    const maskedIP = maskIPv4(ipAddress);
+    // maskedIP 为 null 表示非 IPv4（可能是 IPv6），不存储
+
     // 保存节点数据
     const nodeData = {
-      id: nodeId, ipAddress, ...data,
+      id: nodeId,
+      ipAddress: maskedIP || '-', // IPv6 不存储，显示为 -
+      ...data,
       name: name || nodeId, location: location || 'Unknown', countryCode: countryCode || 'US',
       lastUpdate: Date.now(), status: 'online',
       network: { ...data.network, monthlyUsed },
@@ -264,10 +311,10 @@ async function handleReport(request, env) {
     return jsonResponse({ success: true, geo: geoInfo ? { location, countryCode, name } : null });
   } catch (error) {
     console.error('Error in handleReport:', error);
-    return jsonResponse({ 
-      error: 'Report processing failed', 
+    return jsonResponse({
+      error: 'Report processing failed',
       message: error.message,
-      stack: error.stack 
+      stack: error.stack
     }, 500);
   }
 }
