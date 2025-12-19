@@ -37,7 +37,7 @@ function generateDemoNode(config: typeof demoNodesConfig[0], index: number): VPS
     location: config.location,
     countryCode: config.countryCode,
     ipAddress: `${randInt(1, 255)}.x.x.${randInt(1, 255)}`,
-    ipv6Supported: Math.random() > 0.5,
+    ipv6Address: Math.random() > 0.5 ? `2001:***:${randInt(1000, 9999)}` : '',
     status: isOffline ? 'offline' : cpuUsage > 70 || memUsage > 80 ? 'warning' : 'online',
     os: ['Ubuntu 22.04', 'Debian 12', 'CentOS 7', 'Rocky Linux 9'][index],
     uptime: isOffline ? 0 : randInt(86400, 86400 * 60), // 1-60 天

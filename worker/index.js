@@ -311,14 +311,12 @@ async function handleReport(request, env) {
     // IP 脱敏处理
     const maskedIPv4 = maskIPv4(ipAddress);
     const maskedIPv6 = maskIPv6(data.ipv6Address);
-    const ipv6Supported = !!data.ipv6Address;
 
     // 保存节点数据
     const nodeData = {
       id: nodeId,
       ipAddress: maskedIPv4 || '-',
       ipv6Address: maskedIPv6 || '',
-      ipv6Supported: ipv6Supported,
       ...data,
       name: name || nodeId, location: location || 'Unknown', countryCode: countryCode || 'US',
       lastUpdate: Date.now(), status: 'online',

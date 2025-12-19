@@ -89,9 +89,9 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
           <span className="font-mono flex-shrink-0">{node.ipAddress}</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           {/* IPv6 状态 */}
-          <span className={`flex items-center gap-0.5 flex-shrink-0 ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`flex items-center gap-0.5 flex-shrink-0 ${node.ipv6Address ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
             <span className="font-mono">v6</span>
-            {node.ipv6Supported ? '✓' : '✗'}
+            {node.ipv6Address ? '✓' : '✗'}
           </span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           <Calendar className="w-3 h-3 flex-shrink-0" />
@@ -444,8 +444,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                           </div>
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
-                            <div className={`font-medium font-mono ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                              {node.ipv6Supported ? (node.ipv6Address || '✓ 支持') : '✗ 不支持'}
+                            <div className={`font-medium font-mono ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                              {node.ipv6Address || '✗ 不支持'}
                             </div>
                           </div>
                         </div>
@@ -580,8 +580,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     </div>
                     <div>
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">IPv6</div>
-                      <div className={`font-medium whitespace-nowrap text-[10px] ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                        {node.ipv6Supported ? (node.ipv6Address || '✓ 支持') : '✗ 不支持'}
+                      <div className={`font-medium whitespace-nowrap text-[10px] ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                        {node.ipv6Address || '✗ 不支持'}
                       </div>
                     </div>
                   </div>

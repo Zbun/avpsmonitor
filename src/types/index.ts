@@ -7,7 +7,6 @@ export interface VPSNode {
   countryCode: string;  // ISO 3166-1 alpha-2 国家代码，用于国旗展示
   ipAddress: string;    // 脱敏后的 IPv4 地址
   ipv6Address?: string;  // 脱敏后的 IPv6 地址
-  ipv6Supported?: boolean; // 是否支持 IPv6
   status: 'online' | 'offline' | 'warning';
 
   // 系统信息
