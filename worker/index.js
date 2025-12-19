@@ -233,7 +233,7 @@ async function handleNodes(env) {
 async function handleReport(request, env) {
   try {
     const token = request.headers.get('x-api-token') || request.headers.get('authorization')?.replace('Bearer ', '');
-    const authToken = env.VPS_AUTH_TOKEN || env.API_TOKEN;
+    const authToken = env.API_TOKEN;
 
     if (!authToken || token !== authToken) {
       return jsonResponse({ error: 'Unauthorized', debug: { hasToken: !!token, hasAuthToken: !!authToken } }, 401);

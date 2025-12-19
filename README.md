@@ -52,17 +52,12 @@
 | 变量名 | 值 | Environment |
 |--------|---|------------|
 | `API_TOKEN` | `your-password` | Production ✓ |
-| `VPS_AUTH_TOKEN` | `your-password` | Production ✓ |
-
-> 💡 两个变量的值相同，都填你的密码
 
 **C. 重新部署**
 
 返回 **Deployments**，点击 **Retry deployment**。
 
 **完成！** 访问你的域名，应该能看到监控面板。
-
-> ⚠️ **注意**：在 Dashboard 配置的绑定和变量，拉取上游更新后不会丢失。
 
 ---
 
@@ -93,7 +88,7 @@ curl -fsSL https://raw.githubusercontent.com/你的用户名/avpsmonitor/main/ag
 | 参数 | 说明 |
 |-----|------|
 | 第 1 个 | Worker 地址 |
-| 第 2 个 | `VPS_AUTH_TOKEN` 的值 |
+| 第 2 个 | `API_TOKEN` 的值 |
 | 第 3 个 | 节点 ID（每台 VPS 不同） |
 
 ### Agent 管理
@@ -110,9 +105,9 @@ systemctl restart vps-agent   # 重启
 
 | 变量名 | 必填 | 说明 |
 |--------|------|------|
-| `VPS_AUTH_TOKEN` | ✅ | Agent 认证密码 |
+| `API_TOKEN` | ✅ | Agent 认证密码 |
 | `VPS_SERVERS` | ❌ | 预配置服务器列表 |
-| `REFRESH_INTERVAL` | ❌ | 刷新间隔（毫秒），默认 2000 |
+| `REFRESH_INTERVAL` | ❌ | 刷新间隔（毫秒），默认 1000 |
 
 ### VPS_SERVERS 格式
 
@@ -160,10 +155,7 @@ npm run build   # 构建
 A: 检查 D1 绑定，变量名必须是 `VPS_DB`，绑定后需重新部署。
 
 **Q: Agent 报错 401？**
-A: Token 不匹配，确保环境变量是 `VPS_AUTH_TOKEN`。
-
-**Q: 拉取上游更新后配置会丢失吗？**
-A: 不会。在 Dashboard 配置的绑定和变量会保留，只有在 `wrangler.toml` 中配置才会被覆盖。
+A: Token 不匹配，确保环境变量 `API_TOKEN` 与 Agent 使用的密码一致。
 
 ---
 
