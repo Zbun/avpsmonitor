@@ -216,11 +216,9 @@ get_ipv4() {
 
 # 获取公网 IPv6 地址（全球单播地址）
 get_ipv6() {
-    local iface=$(get_main_interface)
-    if [ -n "$iface" ]; then
-        # 获取以 2 或 3 开头的全球单播地址
-        ip -6 addr show dev $iface 2>/dev/null | grep inet6 | grep -v fe80 | grep -v "::1" | awk '{print $2}' | cut -d/ -f1 | grep "^[23]" | head -1
-    fi
+    # 查找所有接口的全球单播地址 (2000::/3)
+    # 使用 ip -6 addr show scope global 可以更准确地过滤掉 link-local 等非公网地址
+    ip -6 addr show scope global 2>/dev/null | grep inet6 | awk '{print $2}' | cut -d/ -f1 | grep -E '^2|3' | head -1
 }
 
 # ===== 主逻辑 =====

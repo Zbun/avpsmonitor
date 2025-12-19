@@ -96,10 +96,18 @@ function simplifyOS(os) {
 
 // IPv4 脱敏：1.2.3.4 -> 1.***.4
 function maskIPv4(ip) {
-  if (!ip || ip === '-') return ip;
+  if (!ip || ip === '-' || !ip.includes('.')) return ip;
   const parts = ip.split('.');
-  if (parts.length !== 4) return null; // 非 IPv4 返回 null
+  if (parts.length !== 4) return ip;
   return `${parts[0]}.***.${parts[3]}`;
+}
+
+// IPv6 脱敏：2001:db8::1 -> 2001:***:1
+function maskIPv6(ip) {
+  if (!ip || ip === '-' || !ip.includes(':')) return ip;
+  const parts = ip.split(':');
+  if (parts.length < 3) return ip;
+  return `${parts[0]}:***:${parts[parts.length - 1]}`;
 }
 
 async function getGeoInfo(ip, db) {
@@ -300,14 +308,17 @@ async function handleReport(request, env) {
 
     const monthlyUsed = Math.max(0, totalUp - trafficData.base_upload) + Math.max(0, totalDown - trafficData.base_download);
 
-    // IP 脱敏处理：IPv4 只保留首尾，IPv6 不存储
-    const maskedIP = maskIPv4(ipAddress);
-    // maskedIP 为 null 表示非 IPv4（可能是 IPv6），不存储
+    // IP 脱敏处理
+    const maskedIPv4 = maskIPv4(ipAddress);
+    const maskedIPv6 = maskIPv6(data.ipv6Address);
+    const ipv6Supported = !!data.ipv6Address;
 
     // 保存节点数据
     const nodeData = {
       id: nodeId,
-      ipAddress: maskedIP || '-', // IPv6 不存储，显示为 -
+      ipAddress: maskedIPv4 || '-',
+      ipv6Address: maskedIPv6 || '',
+      ipv6Supported: ipv6Supported,
       ...data,
       name: name || nodeId, location: location || 'Unknown', countryCode: countryCode || 'US',
       lastUpdate: Date.now(), status: 'online',

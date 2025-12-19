@@ -444,8 +444,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                           </div>
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
-                            <div className={`font-medium ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                              {node.ipv6Supported ? '✓ 支持' : '✗ 不支持'}
+                            <div className={`font-medium font-mono ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                              {node.ipv6Supported ? (node.ipv6Address || '✓ 支持') : '✗ 不支持'}
                             </div>
                           </div>
                         </div>
@@ -576,6 +576,12 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                       <div className="text-slate-400 dark:text-gray-500 text-[9px]">周期</div>
                       <div className="font-medium text-slate-700 dark:text-white whitespace-nowrap text-[10px]">
                         每月{node.network.resetDay}号
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">IPv6</div>
+                      <div className={`font-medium whitespace-nowrap text-[10px] ${node.ipv6Supported ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
+                        {node.ipv6Supported ? (node.ipv6Address || '✓ 支持') : '✗ 不支持'}
                       </div>
                     </div>
                   </div>
