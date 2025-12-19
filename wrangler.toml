@@ -2,6 +2,9 @@ name = "avpsmonitor"
 main = "worker/index.js"
 compatibility_date = "2024-12-01"
 
+# 保留 Dashboard 中配置的变量和绑定（重要！）
+keep_vars = true
+
 # 静态资源配置
 [assets]
 directory = "./dist"
@@ -10,7 +13,6 @@ directory = "./dist"
 # 配置说明（Fork 后在 Cloudflare Dashboard 配置）
 # ==========================================
 # 
-# 不要在此文件配置 D1 和环境变量！
-# 在 Dashboard 配置可确保拉取上游更新时不会丢失。
-#
+# keep_vars = true 确保每次部署不会覆盖 Dashboard 中的配置
+# 
 # ==========================================
