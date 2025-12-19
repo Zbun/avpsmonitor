@@ -4,7 +4,7 @@
 const DEFAULTS = {
   monthlyTotal: 1099511627776,
   resetDay: 1,
-  refreshInterval: 2000,
+  refreshInterval: 1000,
 };
 
 // ==================== 数据库初始化 ====================
