@@ -6,7 +6,7 @@
 
 ## 🎯 特性
 
-- ⚡ **免费部署** - Cloudflare Workers 免费额度完全够用
+- ⚡ **免费部署** - Cloudflare Workers + D1 免费额度完全够用
 - 🌍 **IP 自动定位** - 自动识别 VPS 地区和运营商
 - 🔐 **Token 认证** - 安全的数据上报
 - 📱 **响应式设计** - 适配桌面和移动端
@@ -31,17 +31,17 @@
    - 部署命令：`npx wrangler deploy`
 5. 点击 **Deploy**
 
-### 第 3 步：配置变量和 KV（部署完成后）
+### 第 3 步：配置变量和 D1（部署完成后）
 
 部署完成后，进入项目 **Settings**：
 
-**A. 创建并绑定 KV**
-1. 打开新标签页，进入 **Workers & Pages** → **KV**
-2. **Create namespace**，名称随意（如 `VPS_KV`）
+**A. 创建并绑定 D1 数据库**
+1. 打开新标签页，进入 **Workers & Pages** → **D1 SQL Database**
+2. **Create database**，名称随意（如 `vps-monitor`）
 3. 回到项目 Settings → **Variables**
-4. 找到 **KV Namespace Bindings** → **Add binding**
-   - Variable name: `VPS_KV`
-   - KV namespace: 选择刚创建的命名空间
+4. 找到 **D1 Database Bindings** → **Add binding**
+   - Variable name: `VPS_DB`
+   - D1 database: 选择刚创建的数据库
    - Environment: 勾选 **Production**
 5. 点击 **Save**
 
@@ -70,7 +70,7 @@
 
 正确响应：
 ```json
-{"nodes":[],"kvAvailable":true,"timestamp":...}
+{"nodes":[],"d1Available":true,"timestamp":...}
 ```
 
 ---
@@ -154,8 +154,8 @@ npm run build   # 构建
 
 ## ❓ FAQ
 
-**Q: 报错 "KV not configured"？**
-A: 检查 KV 绑定，变量名必须是 `VPS_KV`，绑定后需重新部署。
+**Q: 报错 "D1 not configured"？**
+A: 检查 D1 绑定，变量名必须是 `VPS_DB`，绑定后需重新部署。
 
 **Q: Agent 报错 401？**
 A: Token 不匹配，确保环境变量是 `VPS_AUTH_TOKEN`。
@@ -171,4 +171,4 @@ MIT
 
 ---
 
-Made with ❤️ | Powered by Cloudflare Workers
+Made with ❤️ | Powered by Cloudflare Workers + D1

@@ -1,15 +1,34 @@
-// VPS Monitor - Cloudflare Worker
+// VPS Monitor - Cloudflare Worker (D1 版本)
 // 处理 API 请求，静态资源由 assets 自动处理
-
-const KV_PREFIX = 'vps:node:';
-const NODES_LIST_KEY = 'vps:nodes:list';
-const GEO_CACHE_PREFIX = 'vps:geo:';
 
 const DEFAULTS = {
   monthlyTotal: 1099511627776,
   resetDay: 1,
   refreshInterval: 2000,
 };
+
+// ==================== 数据库初始化 ====================
+
+async function initDB(db) {
+  await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS nodes (
+      id TEXT PRIMARY KEY,
+      data TEXT,
+      updated_at INTEGER
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS traffic (
+      node_id TEXT PRIMARY KEY,
+      cycle_start TEXT,
+      base_upload INTEGER,
+      base_download INTEGER
+    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS geo_cache (
+      ip TEXT PRIMARY KEY,
+      data TEXT,
+      created_at INTEGER
+    )`),
+  ]);
+}
 
 // ==================== 工具函数 ====================
 
@@ -74,13 +93,15 @@ function simplifyOS(os) {
   return os.split(' ')[0] || 'Unknown';
 }
 
-async function getGeoInfo(ip, kv) {
+async function getGeoInfo(ip, db) {
   if (ip.startsWith('10.') || ip.startsWith('172.') || ip.startsWith('192.168.') || ip === '127.0.0.1') return null;
 
-  if (kv) {
+  if (db) {
     try {
-      const cached = await kv.get(`${GEO_CACHE_PREFIX}${ip}`, 'json');
-      if (cached) return cached;
+      const cached = await db.prepare('SELECT data, created_at FROM geo_cache WHERE ip = ?').bind(ip).first();
+      if (cached && (Date.now() - cached.created_at) < 86400000) {
+        return JSON.parse(cached.data);
+      }
     } catch (e) { }
   }
 
@@ -92,8 +113,11 @@ async function getGeoInfo(ip, kv) {
         country: data.country || '', countryCode: data.countryCode || '',
         city: data.city || '', region: data.regionName || '', isp: data.isp || '',
       };
-      if (kv) {
-        try { await kv.put(`${GEO_CACHE_PREFIX}${ip}`, JSON.stringify(geoInfo), { expirationTtl: 86400 }); } catch (e) { }
+      if (db) {
+        try {
+          await db.prepare('INSERT OR REPLACE INTO geo_cache (ip, data, created_at) VALUES (?, ?, ?)')
+            .bind(ip, JSON.stringify(geoInfo), Date.now()).run();
+        } catch (e) { }
       }
       return geoInfo;
     }
@@ -106,38 +130,40 @@ async function getGeoInfo(ip, kv) {
 async function handleNodes(env) {
   const preConfigured = getPreConfiguredServers(env);
   const now = Date.now();
-  const kv = env.VPS_KV;
+  const db = env.VPS_DB;
 
-  if (!kv) {
+  if (!db) {
     const nodes = Array.from(preConfigured.entries()).map(([id, c]) => generatePlaceholderNode(id, c));
-    return jsonResponse({ nodes, timestamp: now, count: nodes.length, kvAvailable: false });
+    return jsonResponse({ nodes, timestamp: now, count: nodes.length, d1Available: false });
   }
 
-  let nodeIds = [];
   try {
-    const list = await kv.get(NODES_LIST_KEY, 'json');
-    if (Array.isArray(list)) nodeIds = list;
+    await initDB(db);
   } catch (e) { }
 
-  const results = await Promise.all(nodeIds.map(id => kv.get(`${KV_PREFIX}${id}`, 'json').catch(() => null)));
+  let rows = [];
+  try {
+    const result = await db.prepare('SELECT id, data, updated_at FROM nodes').all();
+    rows = result.results || [];
+  } catch (e) { }
 
-  const nodes = nodeIds.map((nodeId, i) => {
-    const nodeData = results[i];
-    if (!nodeData) return null;
+  const nodes = rows.map(row => {
+    const nodeData = JSON.parse(row.data);
+    const lastUpdate = row.updated_at;
 
-    const isOnline = (now - nodeData.lastUpdate) < 15000;
-    if ((now - nodeData.lastUpdate) >= 60000) {
-      preConfigured.delete(nodeId);
+    const isOnline = (now - lastUpdate) < 15000;
+    if ((now - lastUpdate) >= 60000) {
+      preConfigured.delete(row.id);
       return null;
     }
 
-    const preConfig = preConfigured.get(nodeId);
-    preConfigured.delete(nodeId);
+    const preConfig = preConfigured.get(row.id);
+    preConfigured.delete(row.id);
     const network = nodeData.network || {};
 
     return {
       ...nodeData,
-      name: preConfig?.name || nodeData.name || nodeId,
+      name: preConfig?.name || nodeData.name || row.id,
       countryCode: preConfig?.countryCode || nodeData.countryCode || 'US',
       location: preConfig?.location || nodeData.location || 'Unknown',
       status: isOnline ? 'online' : 'offline',
@@ -158,80 +184,92 @@ async function handleNodes(env) {
   const allNodes = [...nodes, ...remaining];
 
   return jsonResponse({
-    nodes: allNodes, timestamp: now, count: allNodes.length, kvAvailable: true,
+    nodes: allNodes, timestamp: now, count: allNodes.length, d1Available: true,
     refreshInterval: parseInt(env.REFRESH_INTERVAL) || DEFAULTS.refreshInterval,
   });
 }
 
 async function handleReport(request, env) {
-  const token = request.headers.get('x-api-token') || request.headers.get('authorization')?.replace('Bearer ', '');
-  const authToken = env.VPS_AUTH_TOKEN || env.API_TOKEN;
-
-  if (!authToken || token !== authToken) {
-    return jsonResponse({ error: 'Unauthorized' }, 401);
-  }
-
-  const kv = env.VPS_KV;
-  if (!kv) {
-    return jsonResponse({ error: 'KV not configured' }, 503);
-  }
-
-  const body = await request.json();
-  const { nodeId, ipAddress, ...data } = body;
-
-  if (!nodeId) {
-    return jsonResponse({ error: 'Missing nodeId' }, 400);
-  }
-
-  // 地理位置
-  let geoInfo = null, location = data.location, countryCode = data.countryCode, name = data.name;
-  if (ipAddress && (!location || location === 'Unknown' || !countryCode)) {
-    geoInfo = await getGeoInfo(ipAddress, kv);
-    if (geoInfo) {
-      if (!countryCode || countryCode === 'US') countryCode = geoInfo.countryCode;
-      if (!location || location === 'Unknown') location = geoInfo.city || geoInfo.region || geoInfo.country;
-      if (!name || name === nodeId) name = geoInfo.city ? `${geoInfo.city} ${geoInfo.isp?.split(' ')[0] || ''}`.trim() : `${geoInfo.country} VPS`;
+  try {
+    const token = request.headers.get('x-api-token') || request.headers.get('authorization')?.replace('Bearer ', '');
+    const authToken = env.VPS_AUTH_TOKEN || env.API_TOKEN;
+    
+    if (!authToken || token !== authToken) {
+      return jsonResponse({ error: 'Unauthorized', debug: { hasToken: !!token, hasAuthToken: !!authToken } }, 401);
     }
+
+    const db = env.VPS_DB;
+    if (!db) {
+      return jsonResponse({ error: 'D1 not configured' }, 503);
+    }
+
+    try {
+      await initDB(db);
+    } catch (e) { }
+
+    const body = await request.json();
+    const { nodeId, ipAddress, ...data } = body;
+
+    if (!nodeId) {
+      return jsonResponse({ error: 'Missing nodeId' }, 400);
+    }
+
+    // 地理位置
+    let geoInfo = null, location = data.location, countryCode = data.countryCode, name = data.name;
+    if (ipAddress && (!location || location === 'Unknown' || !countryCode)) {
+      geoInfo = await getGeoInfo(ipAddress, db);
+      if (geoInfo) {
+        if (!countryCode || countryCode === 'US') countryCode = geoInfo.countryCode;
+        if (!location || location === 'Unknown') location = geoInfo.city || geoInfo.region || geoInfo.country;
+        if (!name || name === nodeId) name = geoInfo.city ? `${geoInfo.city} ${geoInfo.isp?.split(' ')[0] || ''}`.trim() : `${geoInfo.country} VPS`;
+      }
+    }
+
+    // 月流量计算
+    const resetDay = data.trafficResetDay || 1;
+    const now = new Date();
+    const cycleStart = now.getDate() >= resetDay
+      ? new Date(now.getFullYear(), now.getMonth(), resetDay)
+      : new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
+    const cycleKey = `${cycleStart.getFullYear()}-${cycleStart.getMonth() + 1}-${cycleStart.getDate()}`;
+
+    const totalUp = data.network?.totalUpload || 0, totalDown = data.network?.totalDownload || 0;
+
+    let trafficData = null;
+    try {
+      trafficData = await db.prepare('SELECT cycle_start, base_upload, base_download FROM traffic WHERE node_id = ?')
+        .bind(nodeId).first();
+    } catch (e) { }
+
+    if (!trafficData || trafficData.cycle_start !== cycleKey) {
+      trafficData = { cycle_start: cycleKey, base_upload: totalUp, base_download: totalDown };
+      await db.prepare('INSERT OR REPLACE INTO traffic (node_id, cycle_start, base_upload, base_download) VALUES (?, ?, ?, ?)')
+        .bind(nodeId, cycleKey, totalUp, totalDown).run();
+    }
+
+    const monthlyUsed = Math.max(0, totalUp - trafficData.base_upload) + Math.max(0, totalDown - trafficData.base_download);
+
+    // 保存节点数据
+    const nodeData = {
+      id: nodeId, ipAddress, ...data,
+      name: name || nodeId, location: location || 'Unknown', countryCode: countryCode || 'US',
+      lastUpdate: Date.now(), status: 'online',
+      network: { ...data.network, monthlyUsed },
+      latency: data.latency || null,
+    };
+
+    await db.prepare('INSERT OR REPLACE INTO nodes (id, data, updated_at) VALUES (?, ?, ?)')
+      .bind(nodeId, JSON.stringify(nodeData), Date.now()).run();
+
+    return jsonResponse({ success: true, geo: geoInfo ? { location, countryCode, name } : null });
+  } catch (error) {
+    console.error('Error in handleReport:', error);
+    return jsonResponse({ 
+      error: 'Report processing failed', 
+      message: error.message,
+      stack: error.stack 
+    }, 500);
   }
-
-  // 月流量计算
-  const resetDay = data.trafficResetDay || 1;
-  const now = new Date();
-  const cycleStart = now.getDate() >= resetDay
-    ? new Date(now.getFullYear(), now.getMonth(), resetDay)
-    : new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
-  const cycleKey = `${cycleStart.getFullYear()}-${cycleStart.getMonth() + 1}-${cycleStart.getDate()}`;
-
-  const trafficKey = `vps:traffic:${nodeId}`;
-  let trafficData = await kv.get(trafficKey, 'json').catch(() => null);
-  const totalUp = data.network?.totalUpload || 0, totalDown = data.network?.totalDownload || 0;
-
-  if (!trafficData || trafficData.cycleStart !== cycleKey) {
-    trafficData = { cycleStart: cycleKey, baseUpload: totalUp, baseDownload: totalDown };
-    await kv.put(trafficKey, JSON.stringify(trafficData), { expirationTtl: 45 * 86400 });
-  }
-
-  const monthlyUsed = Math.max(0, totalUp - trafficData.baseUpload) + Math.max(0, totalDown - trafficData.baseDownload);
-
-  // 保存节点数据
-  const nodeData = {
-    id: nodeId, ipAddress, ...data,
-    name: name || nodeId, location: location || 'Unknown', countryCode: countryCode || 'US',
-    lastUpdate: Date.now(), status: 'online',
-    network: { ...data.network, monthlyUsed },
-    latency: data.latency || null,
-  };
-
-  await kv.put(`${KV_PREFIX}${nodeId}`, JSON.stringify(nodeData), { expirationTtl: 20 });
-
-  // 更新节点列表
-  let nodeList = await kv.get(NODES_LIST_KEY, 'json').catch(() => []) || [];
-  if (!nodeList.includes(nodeId)) {
-    nodeList.push(nodeId);
-    await kv.put(NODES_LIST_KEY, JSON.stringify(nodeList), { expirationTtl: 365 * 86400 });
-  }
-
-  return jsonResponse({ success: true, geo: geoInfo ? { location, countryCode, name } : null });
 }
 
 // ==================== 响应辅助 ====================
@@ -302,4 +340,3 @@ export default {
     }
   },
 };
-
