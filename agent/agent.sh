@@ -24,7 +24,7 @@ SERVER_URL="${SERVER_URL:-${1:-https://your-monitor.vercel.app}}"
 API_TOKEN="${API_TOKEN:-${2:-your-secret-token}}"
 NODE_ID="${NODE_ID:-${3:-node-1}}"
 NODE_NAME="${NODE_NAME:-}"  # 自定义主机名（留空则使用 hostname）
-INTERVAL="${INTERVAL:-4}"  # 上报间隔（秒）
+INTERVAL="${INTERVAL:-10}"  # 上报间隔（秒），默认10秒以控制D1写入量
 TRAFFIC_RESET_DAY="${TRAFFIC_RESET_DAY:-1}"
 
 # 用于计算网络速度的变量

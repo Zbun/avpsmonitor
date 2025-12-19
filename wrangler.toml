@@ -7,26 +7,10 @@ compatibility_date = "2024-12-01"
 directory = "./dist"
 
 # ==========================================
-# 环境变量和 D1 在 Cloudflare Dashboard 中配置
+# 配置说明（Fork 后在 Cloudflare Dashboard 配置）
 # ==========================================
 # 
-# Fork 后，在 Cloudflare Dashboard 中配置：
-#
-# 1. 创建 D1 数据库
-#    Workers & Pages → D1 SQL Database → Create database
-#    数据库名称随意（如 vps-monitor）
-#
-# 2. 部署后，在项目 Settings 中配置：
-#    
-#    【环境变量】Settings → Variables → Add variable:
-#      - API_TOKEN = your-secret-password
-#      - VPS_AUTH_TOKEN = your-secret-password
-#    
-#    【D1 绑定】Settings → Variables → D1 Database Bindings → Add binding:
-#      - Variable name: VPS_DB
-#      - D1 database: 选择你创建的数据库
-#      - Environment: Production (勾选)
-#
-# 3. 配置完成后，重新部署即可生效
+# 不要在此文件配置 D1 和环境变量！
+# 在 Dashboard 配置可确保拉取上游更新时不会丢失。
 #
 # ==========================================

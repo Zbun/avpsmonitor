@@ -31,23 +31,23 @@
    - 部署命令：`npx wrangler deploy`
 5. 点击 **Deploy**
 
-### 第 3 步：配置变量和 D1（部署完成后）
+### 第 3 步：配置 D1 和环境变量（部署完成后）
 
-部署完成后，进入项目 **Settings**：
+部署完成后，进入项目配置：
 
 **A. 创建并绑定 D1 数据库**
-1. 打开新标签页，进入 **Workers & Pages** → **D1 SQL Database**
-2. **Create database**，名称随意（如 `vps-monitor`）
-3. 回到项目 Settings → **Variables**
-4. 找到 **D1 Database Bindings** → **Add binding**
+
+1. **Workers & Pages** → **D1 SQL Database** → **Create database**
+2. 名称随意（如 `vps-monitor`）
+3. 回到你的项目，进入 **Bindings** 选项卡
+4. **Add** → **D1 Database**
    - Variable name: `VPS_DB`
-   - D1 database: 选择刚创建的数据库
-   - Environment: 勾选 **Production**
+   - D1 Database: 选择刚创建的数据库
 5. 点击 **Save**
 
 **B. 添加环境变量**
 
-在同一页面，找到 **Environment Variables** → **Add variable**：
+进入 **Settings** → **Variables** → **Add variable**：
 
 | 变量名 | 值 | Environment |
 |--------|---|------------|
@@ -61,6 +61,8 @@
 返回 **Deployments**，点击 **Retry deployment**。
 
 **完成！** 访问你的域名，应该能看到监控面板。
+
+> ⚠️ **注意**：在 Dashboard 配置的绑定和变量，拉取上游更新后不会丢失。
 
 ---
 
@@ -160,8 +162,8 @@ A: 检查 D1 绑定，变量名必须是 `VPS_DB`，绑定后需重新部署。
 **Q: Agent 报错 401？**
 A: Token 不匹配，确保环境变量是 `VPS_AUTH_TOKEN`。
 
-**Q: 想部署到 Vercel？**
-A: 可以，使用 `/api` 目录下的 Vercel 函数，需要 Upstash Redis。
+**Q: 拉取上游更新后配置会丢失吗？**
+A: 不会。在 Dashboard 配置的绑定和变量会保留，只有在 `wrangler.toml` 中配置才会被覆盖。
 
 ---
 
