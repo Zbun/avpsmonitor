@@ -8,20 +8,3 @@ keep_vars = true
 # 静态资源配置
 [assets]
 directory = "./dist"
-
-# ==========================================
-# D1 数据库绑定（必须配置，否则每次部署会丢失！）
-# ==========================================
-# 
-# 步骤：
-# 1. 在 CF Dashboard 创建 D1 数据库
-# 2. 复制 Database ID
-# 3. 取消下面的注释，填入你的 database_id
-# 4. 提交代码
-#
-# [[d1_databases]]
-# binding = "VPS_DB"
-# database_name = "vps-monitor"
-# database_id = "在这里填入你的 Database ID"
-#
-# ==========================================

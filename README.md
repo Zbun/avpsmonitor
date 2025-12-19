@@ -17,22 +17,17 @@
 
 ## 🚀 部署步骤
 
-### 第 1 步：Fork 并配置 D1
+### 第 1 步：Fork 仓库
 
-1. 点击右上角 **Fork** 按钮
-2. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
-3. **Workers & Pages** → **D1 SQL Database** → **Create database**
-4. 名称随意（如 `vps-monitor`），创建后**复制 Database ID**
-5. 编辑你 Fork 仓库中的 `wrangler.toml`，取消注释并填入 ID：
-   ```toml
-   [[d1_databases]]
-   binding = "VPS_DB"
-   database_name = "vps-monitor"
-   database_id = "你复制的 Database ID"
-   ```
-6. 提交修改
+点击右上角 **Fork** 按钮，Fork 到你的 GitHub 账号。
 
-### 第 2 步：部署到 Cloudflare
+### 第 2 步：创建 D1 数据库
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. 左侧菜单 **存储和数据库** → **D1 SQL 数据库** → **创建**
+3. 名称随意（如 `vps-monitor`）
+
+### 第 3 步：部署到 Cloudflare
 
 1. **Workers & Pages** → **Create** → **Connect to Git**
 2. 选择你 Fork 的仓库
@@ -41,19 +36,33 @@
    - 部署命令：`npx wrangler deploy`
 4. 点击 **Deploy**
 
-### 第 3 步：添加环境变量
+### 第 4 步：绑定 D1 和配置变量
 
-部署完成后，进入项目 **Settings** → **Variables** → **Add variable**：
+部署完成后，进入项目配置：
 
-| 变量名 | 值 | Environment |
-|--------|---|------------|
-| `API_TOKEN` | `your-password` | Production ✓ |
+**A. 绑定 D1 数据库**
 
-然后返回 **Deployments**，点击 **Retry deployment**。
+1. 进入项目 → **Bindings** 选项卡
+2. **Add** → **D1 Database**
+   - Variable name: `VPS_DB`
+   - D1 Database: 选择第 2 步创建的数据库
+3. 点击 **Save**
+
+**B. 添加环境变量**
+
+进入 **Settings** → **Variables** → **Add variable**：
+
+| 变量名 | 值 |
+|--------|---|
+| `API_TOKEN` | `your-password` |
+
+**C. 重新部署**
+
+返回 **Deployments**，点击 **Retry deployment**。
 
 **完成！** 访问你的域名即可看到监控面板。
 
-> ⚠️ **重要**：D1 绑定必须写在 `wrangler.toml` 中，否则每次更新代码会丢失！环境变量在 Dashboard 配置即可保留。
+> ⚠️ **重要**：每次从上游拉取更新后 **D1 绑定会丢失**，需要重新在 Bindings 选项卡绑定。环境变量不受影响。
 
 ---
 
@@ -124,7 +133,7 @@ avpsmonitor/
 │   └── index.js        # Cloudflare Worker 入口
 ├── src/                # React 前端
 ├── agent/              # VPS Agent
-├── wrangler.toml       # Cloudflare 配置（需配置 D1）
+├── wrangler.toml       # Cloudflare 配置
 └── package.json
 ```
 
@@ -143,13 +152,13 @@ npm run build   # 构建
 ## ❓ FAQ
 
 **Q: 报错 "D1 not configured"？**
-A: 检查 `wrangler.toml` 中 D1 配置是否正确取消注释并填入 `database_id`。
+A: 检查 Bindings 选项卡是否已绑定 D1，变量名必须是 `VPS_DB`。
 
 **Q: Agent 报错 401？**
 A: 确保 Dashboard 环境变量 `API_TOKEN` 的值与 Agent 使用的密码一致。
 
 **Q: 更新代码后 D1 绑定丢失？**
-A: D1 必须在 `wrangler.toml` 中配置，不能只在 Dashboard 配置。
+A: 这是正常现象。每次更新代码后需要重新在 Bindings 选项卡绑定 D1 数据库。
 
 ---
 
