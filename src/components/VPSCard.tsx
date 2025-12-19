@@ -89,9 +89,9 @@ export const VPSCard: React.FC<VPSCardProps> = ({ node, latencyTest, viewMode = 
           <span className="font-mono flex-shrink-0">{node.ipAddress}</span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           {/* IPv6 状态 */}
-          <span className={`flex items-center gap-0.5 flex-shrink-0 ${node.ipv6Address ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
+          <span className={`flex items-center gap-0.5 flex-shrink-0 ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400 dark:text-slate-500'}`}>
             <span className="font-mono">v6</span>
-            {node.ipv6Address ? '✓' : '✗'}
+            {node.ipv6Supported ? '✓' : '✗'}
           </span>
           <span className="text-slate-300 dark:text-slate-600">|</span>
           <Calendar className="w-3 h-3 flex-shrink-0" />
@@ -293,7 +293,15 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                         <span className="flag-emoji text-sm">{flag}</span>
                         <div>
                           <div className="font-medium text-slate-800 dark:text-white text-xs">{node.name}</div>
-                          <div className="text-[10px] text-slate-500 dark:text-gray-400">{node.location}</div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-gray-400">
+                            <span className="truncate max-w-[80px]">{node.location}</span>
+                            <span className="text-slate-300 dark:text-slate-600">|</span>
+                            <span className="font-mono">{node.ipAddress}</span>
+                            <span className="text-slate-300 dark:text-slate-600">|</span>
+                            <span className={`font-mono ${node.ipv6Supported ? 'text-green-500' : 'text-slate-400'}`}>
+                              v6{node.ipv6Supported ? '✓' : '✗'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -440,12 +448,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                           </div>
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv4</div>
-                            <div className="font-medium font-mono text-slate-700 dark:text-white">{node.ipAddress || '-'}</div>
-                          </div>
-                          <div>
-                            <div className="text-slate-400 dark:text-gray-500 text-[10px]">IPv6</div>
-                            <div className={`font-medium font-mono ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                              {node.ipv6Address || '✗ 不支持'}
+                            <div className="font-medium font-mono text-slate-700 dark:text-white">
+                              {node.ipAddress || '-'}
+                              {node.ipv6Supported && <span className="ml-2 text-green-600 dark:text-green-400 text-[10px] font-normal tracking-tight">/ v6 ✓</span>}
                             </div>
                           </div>
                         </div>
@@ -579,9 +584,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                       </div>
                     </div>
                     <div>
-                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">IPv6</div>
-                      <div className={`font-medium whitespace-nowrap text-[10px] ${node.ipv6Address ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-gray-500'}`}>
-                        {node.ipv6Address || '✗ 不支持'}
+                      <div className="text-slate-400 dark:text-gray-500 text-[9px]">网际协议</div>
+                      <div className="font-medium text-slate-700 dark:text-white text-[10px]">
+                        v4 ✓ {node.ipv6Supported ? '/ v6 ✓' : ''}
                       </div>
                     </div>
                   </div>
