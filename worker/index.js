@@ -5,6 +5,7 @@ const DEFAULTS = {
   monthlyTotal: 1099511627776,
   resetDay: 1,
   refreshInterval: 1000,
+  reportInterval: 10, // 写入间隔（秒），控制 D1 写入频率
 };
 
 // ==================== 数据库初始化 ====================
@@ -254,6 +255,15 @@ async function handleReport(request, env) {
     if (!nodeId) {
       return jsonResponse({ error: 'Missing nodeId' }, 400);
     }
+
+    // 检查写入间隔，避免过于频繁写入 D1
+    const reportInterval = (parseInt(env.REPORT_INTERVAL) || DEFAULTS.reportInterval) * 1000;
+    try {
+      const lastUpdate = await db.prepare('SELECT updated_at FROM nodes WHERE id = ?').bind(nodeId).first();
+      if (lastUpdate && (Date.now() - lastUpdate.updated_at) < reportInterval) {
+        return jsonResponse({ success: true, skipped: true, nextUpdate: reportInterval - (Date.now() - lastUpdate.updated_at) });
+      }
+    } catch (e) { }
 
     // 地理位置
     let geoInfo = null, location = data.location, countryCode = data.countryCode, name = data.name;
