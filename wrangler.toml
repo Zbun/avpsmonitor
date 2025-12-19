@@ -2,7 +2,7 @@ name = "avpsmonitor"
 main = "worker/index.js"
 compatibility_date = "2024-12-01"
 
-# 保留 Dashboard 中配置的变量和绑定（重要！）
+# 保留 Dashboard 中配置的环境变量
 keep_vars = true
 
 # 静态资源配置
@@ -10,9 +10,18 @@ keep_vars = true
 directory = "./dist"
 
 # ==========================================
-# 配置说明（Fork 后在 Cloudflare Dashboard 配置）
+# D1 数据库绑定（必须配置，否则每次部署会丢失！）
 # ==========================================
 # 
-# keep_vars = true 确保每次部署不会覆盖 Dashboard 中的配置
-# 
+# 步骤：
+# 1. 在 CF Dashboard 创建 D1 数据库
+# 2. 复制 Database ID
+# 3. 取消下面的注释，填入你的 database_id
+# 4. 提交代码
+#
+# [[d1_databases]]
+# binding = "VPS_DB"
+# database_name = "vps-monitor"
+# database_id = "在这里填入你的 Database ID"
+#
 # ==========================================
