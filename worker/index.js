@@ -221,6 +221,9 @@ async function handleNodes(env) {
         ...network,
         currentUpload: isOnline ? (network.currentUpload || 0) : 0,
         currentDownload: isOnline ? (network.currentDownload || 0) : 0,
+        monthlyTotal: network.monthlyTotal || DEFAULTS.monthlyTotal,
+        monthlyUsed: network.monthlyUsed || 0,
+        resetDay: network.resetDay || DEFAULTS.resetDay,
       },
     });
   }
