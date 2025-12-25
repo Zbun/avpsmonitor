@@ -185,8 +185,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const results = await pipeline.exec();
 
-    // 30天过期时间（与月流量周期一致）
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    // 1周过期时间（彻底清理）
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    // 8小时离线隐藏阈值
+    const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
 
     // 收集需要从节点列表中清理的过期节点
     const expiredNodeIds: string[] = [];
@@ -204,8 +206,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 解析 JSON 数据
         const nodeData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
-        // 检查是否超过 30 天未更新，是则清理
-        const isExpired = (now - nodeData.lastUpdate) >= THIRTY_DAYS_MS;
+        // 检查是否超过 1 周未更新，是则清理
+        const isExpired = (now - nodeData.lastUpdate) >= ONE_WEEK_MS;
         if (isExpired) {
           expiredNodeIds.push(nodeId);
           preConfigured.delete(nodeId);
@@ -215,11 +217,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 检查是否超时（15秒无更新视为离线，给3-4次上报容错）
         const isOnline = (now - nodeData.lastUpdate) < 15000;
 
-        // 检查是否离线超过1分钟（60秒）
-        const offlineTimeout = 60000; // 1分钟
-        const isOfflineTooLong = (now - nodeData.lastUpdate) >= offlineTimeout;
+        // 检查是否离线超过8小时
+        const isOfflineTooLong = (now - nodeData.lastUpdate) >= EIGHT_HOURS_MS;
 
-        // 如果节点离线超过1分钟，暂时隐藏（上线后自动显示）
+        // 如果节点离线超过8小时，暂时隐藏（上线后自动显示）
         if (isOfflineTooLong) {
           // 从预配置中移除已处理的节点，以便后续不生成占位节点
           preConfigured.delete(nodeId);

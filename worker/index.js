@@ -164,15 +164,22 @@ async function handleNodes(env) {
   const allNodes = [];
   const processedIds = new Set();
 
+  // 离线隐藏阈值：8小时
+  const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
+
   // 先按配置顺序处理
   for (const nodeId of configOrder) {
     const preConfig = preConfigured.get(nodeId);
     const dbNode = dbNodes.get(nodeId);
     processedIds.add(nodeId);
 
-    if (!dbNode || (now - dbNode.updated_at) >= 60000) {
-      // 无数据或过期超过60秒，显示占位
-      allNodes.push(generatePlaceholderNode(nodeId, preConfig));
+    // 无数据：从未上报过，不显示
+    if (!dbNode) {
+      continue;
+    }
+
+    // 离线超过8小时：隐藏
+    if ((now - dbNode.updated_at) >= EIGHT_HOURS_MS) {
       continue;
     }
 
@@ -204,7 +211,8 @@ async function handleNodes(env) {
   // 处理不在配置中但在数据库中的节点（追加到末尾）
   for (const [nodeId, dbNode] of dbNodes) {
     if (processedIds.has(nodeId)) continue;
-    if ((now - dbNode.updated_at) >= 60000) continue;
+    // 离线超过8小时：隐藏
+    if ((now - dbNode.updated_at) >= EIGHT_HOURS_MS) continue;
 
     const nodeData = dbNode.data;
     const isOnline = (now - dbNode.updated_at) < 15000;
