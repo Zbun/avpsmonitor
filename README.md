@@ -110,7 +110,7 @@ systemctl restart vps-agent   # 重启
 |--------|------|------|
 | `API_TOKEN` | ✅ | Agent 认证密码 |
 | `VPS_SERVERS` | ❌ | 预配置服务器列表 |
-| `REFRESH_INTERVAL` | ❌ | 前端刷新间隔（毫秒），默认 1000 |
+| `REFRESH_INTERVAL` | ❌ | 前端刷新间隔（毫秒），默认 10000 |
 | `REPORT_INTERVAL` | ❌ | 写入间隔（秒），默认 10，控制 D1 写入频率 |
 
 ### VPS_SERVERS 格式

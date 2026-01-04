@@ -6,8 +6,8 @@ import {
   updateLatencyTests
 } from '../data/mockData';
 
-// 默认刷新间隔（毫秒）
-const DEFAULT_REFRESH_INTERVAL = 2000;
+// 默认刷新间隔（毫秒），与服务端数据更新频率匹配
+const DEFAULT_REFRESH_INTERVAL = 10000;
 
 // API 响应类型
 interface APIResponse {

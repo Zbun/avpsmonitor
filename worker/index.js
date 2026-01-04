@@ -4,7 +4,7 @@
 const DEFAULTS = {
   monthlyTotal: 1099511627776,
   resetDay: 1,
-  refreshInterval: 1000,
+  refreshInterval: 10000, // 前端刷新间隔（毫秒），与数据更新频率匹配
   reportInterval: 10, // 写入间隔（秒），控制 D1 写入频率
 };
 
