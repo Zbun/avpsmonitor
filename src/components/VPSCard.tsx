@@ -261,14 +261,9 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">CPU</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">内存</th>
               <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">硬盘</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↓速度</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">↑速度</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量(双向)</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center whitespace-nowrap">
-                <span className="text-blue-500">电</span>/
-                <span className="text-red-500">联</span>/
-                <span className="text-green-500">移</span>
-              </th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">网速 ↓|↑</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center whitespace-nowrap"><span className="text-blue-500">电</span>|<span className="text-red-500">联</span>|<span className="text-green-500">移</span></th>
               <th className="px-2 py-2 w-8"></th>
             </tr>
           </thead>
@@ -285,7 +280,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                 <React.Fragment key={node.id}>
                   <tr
                     onClick={() => toggleExpand(node.id)}
-                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${node.status === 'offline' ? 'opacity-60' : ''}`}
+                    className={`hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer ${node.status === 'offline' ? 'opacity-60' : ''}`}
                   >
                     {/* 服务器信息 */}
                     <td className="px-3 py-2">
@@ -318,41 +313,45 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     </td>
 
                     {/* CPU */}
-                    <td className="px-2 py-2 text-center">
-                      <span className={`text-xs font-medium ${node.cpu.usage < 60 ? 'text-green-600 dark:text-green-400' :
-                        node.cpu.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>{node.cpu.usage.toFixed(0)}%</span>
+                    <td className="px-2 py-2">
+                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-indigo-400 dark:bg-indigo-500 transition-all"
+                          style={{ width: `${Math.min(node.cpu.usage, 100)}%` }}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-indigo-900 dark:text-indigo-100">{node.cpu.usage.toFixed(0)}%</span>
+                      </div>
                     </td>
 
                     {/* 内存 */}
-                    <td className="px-2 py-2 text-center">
-                      <span className={`text-xs font-medium ${node.memory.usage < 60 ? 'text-green-600 dark:text-green-400' :
-                        node.memory.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>{node.memory.usage.toFixed(0)}%</span>
+                    <td className="px-2 py-2">
+                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-cyan-400 dark:bg-cyan-500 transition-all"
+                          style={{ width: `${Math.min(node.memory.usage, 100)}%` }}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-cyan-900 dark:text-cyan-100">{node.memory.usage.toFixed(0)}%</span>
+                      </div>
                     </td>
 
                     {/* 硬盘 */}
-                    <td className="px-2 py-2 text-center">
-                      <span className={`text-xs font-medium ${node.disk.usage < 60 ? 'text-green-600 dark:text-green-400' :
-                        node.disk.usage < 80 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>{node.disk.usage.toFixed(0)}%</span>
+                    <td className="px-2 py-2">
+                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-pink-400 dark:bg-pink-500 transition-all"
+                          style={{ width: `${Math.min(node.disk.usage, 100)}%` }}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-pink-900 dark:text-pink-100">{node.disk.usage.toFixed(0)}%</span>
+                      </div>
                     </td>
 
-                    {/* 下载速度 */}
+                    {/* 网速 一行横排 */}
                     <td className="px-2 py-2 text-center">
-                      <span className="text-xs text-blue-600 dark:text-blue-400">
-                        {formatSpeed(node.network.currentDownload)}
-                      </span>
-                    </td>
-
-                    {/* 上传速度 */}
-                    <td className="px-2 py-2 text-center">
-                      <span className="text-xs text-green-600 dark:text-green-400">
-                        {formatSpeed(node.network.currentUpload)}
-                      </span>
+                      <div className="flex items-center justify-center gap-1 text-xs whitespace-nowrap">
+                        <span className="text-blue-600 dark:text-blue-400">↓{formatSpeed(node.network.currentDownload)}</span>
+                        <span className="text-slate-300 dark:text-slate-600">|</span>
+                        <span className="text-green-600 dark:text-green-400">↑{formatSpeed(node.network.currentUpload)}</span>
+                      </div>
                     </td>
 
                     {/* 月流量 */}
@@ -363,28 +362,25 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                             'text-red-600 dark:text-red-400'
                           }`}>{trafficPercent}%</span>
                         <span className="text-[10px] text-slate-500 dark:text-gray-400">
-                          用{formatBytes(node.network.monthlyUsed)}/总{formatBytes(node.network.monthlyTotal)}
+                          {formatBytes(node.network.monthlyUsed)}/{formatBytes(node.network.monthlyTotal)}
                         </span>
                       </div>
                     </td>
 
-                    {/* 三网延迟 */}
-                    <td className="px-2 py-2 text-center">
-                      {latencyTest ? (
-                        <div className="flex items-center justify-center gap-1 text-xs">
-                          <span className={getLatencyColor(latencyTest.isps.find(i => i.code === 'CT')?.status || 'offline')}>
-                            {latencyTest.isps.find(i => i.code === 'CT')?.latency ?? '-'}
-                          </span>
-                          <span className="text-slate-300 dark:text-slate-600">/</span>
-                          <span className={getLatencyColor(latencyTest.isps.find(i => i.code === 'CU')?.status || 'offline')}>
-                            {latencyTest.isps.find(i => i.code === 'CU')?.latency ?? '-'}
-                          </span>
-                          <span className="text-slate-300 dark:text-slate-600">/</span>
-                          <span className={getLatencyColor(latencyTest.isps.find(i => i.code === 'CM')?.status || 'offline')}>
-                            {latencyTest.isps.find(i => i.code === 'CM')?.latency ?? '-'}
-                          </span>
-                        </div>
-                      ) : (
+                    {/* 丢包率 */}
+                    <td className="px-2 py-2">
+                      {latencyTest ? (() => {
+                        const ctLoss = latencyTest.isps.find(i => i.code === 'CT')?.packetLoss || 0;
+                        const cuLoss = latencyTest.isps.find(i => i.code === 'CU')?.packetLoss || 0;
+                        const cmLoss = latencyTest.isps.find(i => i.code === 'CM')?.packetLoss || 0;
+                        const maxLoss = Math.max(ctLoss, cuLoss, cmLoss);
+                        const bgColor = maxLoss < 5 ? 'bg-green-100 dark:bg-green-900/30' : maxLoss < 20 ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30';
+                        return (
+                          <div className={`${bgColor} rounded px-2 py-1 text-center text-xs font-medium whitespace-nowrap`}>
+                            {ctLoss.toFixed(0)}%<span className="text-amber-500 mx-0.5">⚡</span>{cuLoss.toFixed(0)}%<span className="text-amber-500 mx-0.5">⚡</span>{cmLoss.toFixed(0)}%
+                          </div>
+                        );
+                      })() : (
                         <span className="text-slate-400 text-xs">-</span>
                       )}
                     </td>
@@ -398,7 +394,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                   {/* 展开详情 */}
                   {isExpanded && (
                     <tr className="bg-slate-50 dark:bg-slate-900/30">
-                      <td colSpan={10} className="px-3 py-3">
+                      <td colSpan={9} className="px-3 py-3">
                         <div className="grid grid-cols-4 gap-x-4 gap-y-2 text-xs">
                           <div>
                             <div className="text-slate-400 dark:text-gray-500 text-[10px]">操作系统</div>
@@ -453,6 +449,18 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                               {node.ipv6Supported && <span className="ml-2 text-green-600 dark:text-green-400 text-[10px] font-normal tracking-tight">/ v6 ✓</span>}
                             </div>
                           </div>
+                          {latencyTest && (
+                            <div>
+                              <div className="text-slate-400 dark:text-gray-500 text-[10px]">三网延迟</div>
+                              <div className="font-medium text-slate-700 dark:text-white">
+                                <span className="text-blue-500">电</span>{latencyTest.isps.find(i => i.code === 'CT')?.latency ?? '-'}
+                                <span className="text-slate-400 mx-1">/</span>
+                                <span className="text-red-500">联</span>{latencyTest.isps.find(i => i.code === 'CU')?.latency ?? '-'}
+                                <span className="text-slate-400 mx-1">/</span>
+                                <span className="text-green-500">移</span>{latencyTest.isps.find(i => i.code === 'CM')?.latency ?? '-'}ms
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

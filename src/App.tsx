@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Header, Footer, VPSCard, VPSTable, LatencyPanel } from './components';
+import { Header, Footer, VPSCard, VPSTable } from './components';
 import { useVPSData } from './hooks';
 
 function App() {
@@ -8,10 +8,8 @@ function App() {
     latencyTests,
     isLoading,
     isRefreshing,
-    isTesting,
     lastUpdate,
     refresh,
-    runLatencyTest,
   } = useVPSData();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -98,14 +96,6 @@ function App() {
             <VPSTable nodes={nodes} latencyTests={latencyTests} />
           )}
         </div>
-
-        {/* 延迟测试面板 */}
-        <LatencyPanel
-          nodes={nodes}
-          latencyTests={latencyTests}
-          onRunTest={runLatencyTest}
-          isTesting={isTesting}
-        />
       </main>
 
       <Footer />
