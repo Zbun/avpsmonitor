@@ -253,18 +253,18 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
     <div className="bg-white/70 dark:bg-slate-800/60 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-slate-700/40 overflow-hidden">
       {/* 桌面端表格 */}
       <div className="hidden md:block overflow-x-auto max-h-[calc(100vh-240px)]">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead className="sticky top-0 z-10">
             <tr className="bg-slate-100/90 dark:bg-slate-900/80 text-left text-xs backdrop-blur-sm">
-              <th className="px-3 py-2 font-medium text-slate-600 dark:text-gray-300">服务器</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">状态</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">CPU</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">内存</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">硬盘</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">网速 ↓|↑</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center">月流量</th>
-              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center whitespace-nowrap"><span className="text-blue-500">电</span>|<span className="text-red-500">联</span>|<span className="text-green-500">移</span></th>
-              <th className="px-2 py-2 w-8"></th>
+              <th className="px-3 py-2 font-medium text-slate-600 dark:text-gray-300 w-[20%]">服务器</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[6%]">状态</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[9%]">CPU</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[9%]">内存</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[9%]">硬盘</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[14%] whitespace-nowrap">网速 ↓|↑</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[11%] whitespace-nowrap">月流量</th>
+              <th className="px-2 py-2 font-medium text-slate-600 dark:text-gray-300 text-center w-[15%] whitespace-nowrap"><span className="text-blue-500">电</span>|<span className="text-red-500">联</span>|<span className="text-green-500">移</span></th>
+              <th className="px-2 py-2 w-[3%]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -286,8 +286,8 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="flag-emoji text-sm">{flag}</span>
-                        <div>
-                          <div className="font-medium text-slate-800 dark:text-white text-xs">{node.name}</div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-800 dark:text-white text-xs truncate">{node.name}</div>
                           <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-gray-400">
                             <span className="truncate max-w-[80px]">{node.location}</span>
                             <span className="text-slate-300 dark:text-slate-600">|</span>
@@ -303,7 +303,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                     {/* 状态 */}
                     <td className="px-2 py-2 text-center">
-                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${node.status === 'online' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] whitespace-nowrap ${node.status === 'online' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
                         node.status === 'warning' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' :
                           'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
                         }`}>
@@ -314,7 +314,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                     {/* CPU */}
                     <td className="px-2 py-2">
-                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                      <div className="relative h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
                         <div
                           className="absolute inset-y-0 left-0 bg-indigo-400 dark:bg-indigo-500 transition-all"
                           style={{ width: `${Math.min(node.cpu.usage, 100)}%` }}
@@ -325,7 +325,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                     {/* 内存 */}
                     <td className="px-2 py-2">
-                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                      <div className="relative h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
                         <div
                           className="absolute inset-y-0 left-0 bg-cyan-400 dark:bg-cyan-500 transition-all"
                           style={{ width: `${Math.min(node.memory.usage, 100)}%` }}
@@ -336,7 +336,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
 
                     {/* 硬盘 */}
                     <td className="px-2 py-2">
-                      <div className="relative min-w-[70px] h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
+                      <div className="relative h-5 bg-slate-200 dark:bg-slate-700 rounded overflow-hidden">
                         <div
                           className="absolute inset-y-0 left-0 bg-pink-400 dark:bg-pink-500 transition-all"
                           style={{ width: `${Math.min(node.disk.usage, 100)}%` }}
@@ -361,7 +361,7 @@ export const VPSTable: React.FC<VPSTableProps> = ({ nodes, latencyTests }) => {
                           parseFloat(trafficPercent) < 80 ? 'text-yellow-600 dark:text-yellow-400' :
                             'text-red-600 dark:text-red-400'
                           }`}>{trafficPercent}%</span>
-                        <span className="text-[10px] text-slate-500 dark:text-gray-400">
+                        <span className="text-[10px] text-slate-500 dark:text-gray-400 whitespace-nowrap">
                           {formatBytes(node.network.monthlyUsed)}/{formatBytes(node.network.monthlyTotal)}
                         </span>
                       </div>
