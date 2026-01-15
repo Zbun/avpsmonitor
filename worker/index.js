@@ -293,7 +293,7 @@ async function handleReport(request, env) {
     const cycleStart = now.getDate() >= resetDay
       ? new Date(now.getFullYear(), now.getMonth(), resetDay)
       : new Date(now.getFullYear(), now.getMonth() - 1, resetDay);
-    const cycleKey = `${cycleStart.getFullYear()}-${cycleStart.getMonth() + 1}-${cycleStart.getDate()}`;
+    const cycleKey = `${cycleStart.getFullYear()}-${String(cycleStart.getMonth() + 1).padStart(2, '0')}-${String(cycleStart.getDate()).padStart(2, '0')}`;
 
     const totalUp = data.network?.totalUpload || 0, totalDown = data.network?.totalDownload || 0;
 
